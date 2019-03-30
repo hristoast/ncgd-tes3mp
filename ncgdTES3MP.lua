@@ -174,6 +174,9 @@ local function checkForSkillDecay(pid, skill)
          if skillVal > 15 then
             -- Skill has decayed
             skillVal = skillVal - 1
+            setCustomVar(pid, "skill" .. skill, skillVal)
+            Players[pid].data.skills[skill] = skillVal
+            savePlayer(pid)
             -- TODO: message box "Your " .. skill .. " skill has decayed to " .. tostring(number) .. "."
             -- TODO: the mwscript version then does this:
             -- set skillBlock to 0	; Force recheck
@@ -187,11 +190,7 @@ local function checkForSkillDecay(pid, skill)
    setCustomVar(pid, "mastery" .. skill, masterySkill)
    setCustomVar(pid, "oldDay", oldDay)
    setCustomVar(pid, "oldHour", oldHour)
-   setCustomVar(pid, "skill" .. skill, skillVal)
    setCustomVar(pid, "timePassed", timePassed)
-
-   Players[pid].data.skills[skill] = skillVal
-   savePlayer(pid)
 end
 
 
@@ -204,7 +203,7 @@ local function calculateSkillUpdate(pid, skill)
    local actualVal = player.data.skills[skill]
 
    if skillVal ~= actualVal then
-
+      
    end
 
    --[[
