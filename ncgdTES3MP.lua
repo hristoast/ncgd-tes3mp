@@ -8,6 +8,13 @@ ncgdConfig.levelCap = nil
 ncgdConfig.decayRate = "fast"
 ncgdConfig.growthRate = "slow"
 
+-- Setting these to false will break the entire script if custom handlers are blocked for the event
+ncgdConfig.ForceLoadOnPlayerAttribute = true
+ncgdConfig.ForceLoadOnPlayerDeath = true
+ncgdConfig.ForceLoadOnPlayerLevel = true
+ncgdConfig.ForceLoadOnPlayerSkill = true
+-- ccSuite hijacks chargen, but we don't conflict with it... Default to true so NCGD can coexist with it
+ncgdConfig.ForceLoadOnPlayerEndChargen = true
 
 local function dbg(msg)
    --[[ Convenient logging wrapper. ]]--
@@ -174,10 +181,12 @@ local function checkForSkillDecay(pid, skill)
          if skillVal > 15 then
             -- Skill has decayed
             skillVal = skillVal - 1
+
             setCustomVar(pid, "skill" .. skill, skillVal)
             Players[pid].data.skills[skill] = skillVal
             savePlayer(pid)
-            -- TODO: message box "Your " .. skill .. " skill has decayed to " .. tostring(number) .. "."
+
+            tes3mp.MessageBox(pid, -1, "Your " .. skill .. " skill has decayed to " .. tostring(Players[pid].data.skills[skill]) .. ".")
             -- TODO: the mwscript version then does this:
             -- set skillBlock to 0	; Force recheck
             -- But I don't think I need this mechanism to "force a recheck"
@@ -373,11 +382,15 @@ end
 
 
 function ncgdTES3MP.OnPlayerEndChargen(eventStatus, pid)
-   if not eventStatus.validCustomHandlers then
+   if not eventStatus.validCustomHandlers and not ncgdConfig.ForceLoadOnPlayerEndChargen then
       err("validCustomHandlers for `OnPlayerEndChargen` have been set to false!" ..
              "  ncgdTES3MP requires custom handlers to operate!")
       fatal("Exiting the server now... Please set `ForceLoad` to true if you are sure ncgdTES3MP should load anyways.")
    else
+      if ncgdConfig.ForceLoadOnPlayerEndChargen then
+         warn("\"ncgdTES3MP.OnPlayerEndChargen\" is being force loaded!!")
+      end
+
       info("Called \"OnPlayerEndChargen\" for pid \"" .. pid .. "\"")
 
       Players[pid].data.customVariables["NCGD"] = {}
@@ -423,11 +436,15 @@ end
 
 
 function ncgdTES3MP.OnPlayerAttribute(eventStatus, pid)
-   if not eventStatus.validCustomHandlers then
+   if not eventStatus.validCustomHandlers and not ncgdConfig.ForceLoadOnPlayerAttribute then
       err("validCustomHandlers for `OnPlayerAttribute` have been set to false!" ..
              "  ncgdTES3MP requires custom handlers to operate!")
       fatal("Exiting the server now... Please set `ForceLoad` to true if you are sure ncgdTES3MP should load anyways.")
    else
+      if ncgdConfig.ForceLoadOnPlayerAttribute then
+         warn("\"ncgdTES3MP.OnPlayerAttribute\" is being force loaded!!")
+      end
+
       info("Called \"ncgdTES3MP.OnPlayerAttribute\" for pid \"" .. pid .. "\"")
       -- TODO: handle stuff here
    end
@@ -435,11 +452,15 @@ end
 
 
 function ncgdTES3MP.OnPlayerDeath(eventStatus, pid)
-   if not eventStatus.validCustomHandlers then
+   if not eventStatus.validCustomHandlers and not ncgdConfig.ForceLoadOnPlayerDeath then
       err("validCustomHandlers for `OnPlayerDeath` have been set to false!" ..
              "  ncgdTES3MP requires custom handlers to operate!")
       fatal("Exiting the server now... Please set `ForceLoad` to true if you are sure ncgdTES3MP should load anyways.")
    else
+      if ncgdConfig.ForceLoadOnPlayerDeath then
+         warn("\"ncgdTES3MP.OnPlayerDeath\" is being force loaded!!")
+      end
+
       info("Called \"ncgdTES3MP.OnPlayerDeath\" for pid \"" .. pid .. "\"")
       -- TODO: make decay happen faster or more slowly depending on config.  or neither.
    end
@@ -447,11 +468,15 @@ end
 
 
 function ncgdTES3MP.OnPlayerLevel(eventStatus, pid)
-   if not eventStatus.validCustomHandlers then
+   if not eventStatus.validCustomHandlers and not ncgdConfig.ForceLoadOnPlayerLevel then
       err("validCustomHandlers for `OnPlayerLevel` have been set to false!" ..
              "  ncgdTES3MP requires custom handlers to operate!")
       fatal("Exiting the server now... Please set `ForceLoad` to true if you are sure ncgdTES3MP should load anyways.")
    else
+      if ncgdConfig.ForceLoadOnPlayerLevel then
+         warn("\"ncgdTES3MP.OnPlayerLevel\" is being force loaded!!")
+      end
+
       info("Called \"ncgdTES3MP.OnPlayerLevel\" for pid \"" .. pid .. "\"")
       -- TODO: handle stuff here
    end
@@ -459,16 +484,21 @@ end
 
 
 function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
-   if not eventStatus.validCustomHandlers then
+   if not eventStatus.validCustomHandlers and not ncgdConfig.ForceLoadOnPlayerSkill then
       err("validCustomHandlers for `OnPlayerSkill` have been set to false!" ..
              "  ncgdTES3MP requires custom handlers to operate!")
       fatal("Exiting the server now... Please set `ForceLoad` to true if you are sure ncgdTES3MP should load anyways.")
    else
+      if ncgdConfig.ForceLoadOnPlayerSkill then
+         warn("\"ncgdTES3MP.OnPlayerSkill\" is being force loaded!!")
+      end
+
       info("Called \"ncgdTES3MP.OnPlayerSkill\" for pid \"" .. pid .. "\"")
       -- TODO: calculate attributes and level
 
-      -- Please no custom behavior for skills.
+      -- Please no custom or default behavior for skills.
       eventStatus.validCustomHandlers = false
+      eventStatus.validDefaultHandler = false
 
       local player = Players[pid]
    end
