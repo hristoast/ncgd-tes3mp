@@ -16,6 +16,7 @@ ncgdConfig.ForceLoadOnPlayerSkill = true
 -- ccSuite hijacks chargen, but we don't conflict with it... Default to true so NCGD can coexist with it
 ncgdConfig.ForceLoadOnPlayerEndChargen = true
 
+
 local function dbg(msg)
    --[[ Convenient logging wrapper. ]]--
    tes3mp.LogMessage(enumerations.log.VERBOSE, "[ ncgdTES3MP ]: " .. msg)
@@ -58,12 +59,15 @@ end
 
 local function savePlayer(pid)
    dbg("Called \"savePlayer\" for pid \"" .. pid .. "\"")
-   Players[pid]:LoadAttributes()
-   Players[pid]:LoadSkills()
+   local player = Players[pid]
 
-   Players[pid]:LoadInventory()
-   Players[pid]:LoadEquipment()
-   Players[pid]:LoadQuickKeys()
+   player:LoadAttributes()
+   player:LoadSkills()
+   player:LoadLevel()
+
+   player:LoadInventory()
+   player:LoadEquipment()
+   player:LoadQuickKeys()
 end
 
 
@@ -71,6 +75,7 @@ local function getSkillValue(pid, skill)
    dbg("Called \"getSkillValue\" for pid \"" .. pid .. "\" and skill \"" .. skill .. "\"")
    return Players[pid].data.skills[skill]
 end
+
 
 local function getCustomVar(pid, key)
    dbg("Called \"getCustomVar\" for pid \"" .. pid .. "\" and key \"" .. key .. "\"")
@@ -151,6 +156,7 @@ end
 
 local function checkForSkillDecay(pid, skill)
    dbg("Called \"checkForSkillDecay\" for pid \"" .. pid .. "\" and skill \"" .. skill .. "\"")
+   local player = Players[pid]
    -- See line 4877 in NCGD_Main
    local decaySkill = getCustomVar(pid, "decay" .. skill)
    local decayMemory = getCustomVar(pid, "decayMemory")
@@ -183,10 +189,10 @@ local function checkForSkillDecay(pid, skill)
             skillVal = skillVal - 1
 
             setCustomVar(pid, "skill" .. skill, skillVal)
-            Players[pid].data.skills[skill] = skillVal
+            player.data.skills[skill] = skillVal
             savePlayer(pid)
 
-            tes3mp.MessageBox(pid, -1, "Your " .. skill .. " skill has decayed to " .. tostring(Players[pid].data.skills[skill]) .. ".")
+            tes3mp.MessageBox(pid, -1, "Your " .. skill .. " skill has decayed to " .. tostring(player.data.skills[skill]) .. ".")
             -- TODO: the mwscript version then does this:
             -- set skillBlock to 0	; Force recheck
             -- But I don't think I need this mechanism to "force a recheck"
@@ -504,6 +510,7 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
    end
 end
 
+-- TODO: https://github.com/TES3MP/CoreScripts/blob/0.7.0/Tutorial.md#custom-events
 
 -- TODO: support player import by inspecting data on login and looking for the NCGD customVariables key
 customEventHooks.registerHandler("OnPlayerAttribute", ncgdTES3MP.OnPlayerAttribute)
