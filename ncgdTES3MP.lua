@@ -3,6 +3,7 @@ local ncgdTES3MP = {}
 local ncgdConfig = {}
 
 
+-- TODO: Use DataManager
 ncgdConfig.deathDecay = true
 ncgdConfig.levelCap = nil
 ncgdConfig.decayRate = "fast"
