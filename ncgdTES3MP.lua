@@ -9,13 +9,74 @@ ncgdConfig.levelCap = nil
 ncgdConfig.decayRate = "fast"
 ncgdConfig.growthRate = "slow"
 
+-- If you don't want accelerated decay after death, set this to false
+ncgdConfig.ForceLoadOnPlayerDeath = true
+
 -- Setting these to false will break the entire script if custom handlers are blocked for the event
 ncgdConfig.ForceLoadOnPlayerAttribute = true
-ncgdConfig.ForceLoadOnPlayerDeath = true
 ncgdConfig.ForceLoadOnPlayerLevel = true
 ncgdConfig.ForceLoadOnPlayerSkill = true
+
 -- ccSuite hijacks chargen, but we don't conflict with it... Default to true so NCGD can coexist with it
 ncgdConfig.ForceLoadOnPlayerEndChargen = true
+
+-- END user config for ncgdTES3MP -- Don't edit below here!
+
+local NO_DECAY = 0
+local SLOW_DECAY = 1
+local STANDARD_DECAY = 2
+local FAST_DECAY = 3
+
+local SLOW_GROWTH = 1
+local STANDARD_GROWTH = 2
+local FAST_GROWTH = 3
+
+-- Attributes and skills as vars; prevent typo bugs!
+local Agility = "Agility"
+local Endurance = "Endurance"
+local Intelligence = "Intelligence"
+local Luck = "Luck"
+local Personality = "Personality"
+local Speed = "Speed"
+local Strength = "Strength"
+local Willpower = "Willpower"
+
+local Acrobatics = "Acrobatics"
+local Alchemy = "Alchemy"
+local Alteration = "Alteration"
+local Armorer = "Armorer"
+local Athletics = "Athletics"
+local Axe = "Axe"
+local Block = "Block"
+local Bluntweapon = "Bluntweapon"
+local Conjuration = "Conjuration"
+local Destruction = "Destruction"
+local Enchant = "Enchant"
+local Handtohand = "Handtohand"
+local Heavyarmor = "Heavyarmor"
+local Illusion = "Illusion"
+local Lightarmor = "Lightarmor"
+local Longblade = "Longblade"
+local Marksman = "Marksman"
+local Mediumarmor = "Mediumarmor"
+local Mercantile = "Mercantile"
+local Mysticism = "Mysticism"
+local Restoration = "Restoration"
+local Security = "Security"
+local Shortblade = "Shortblade"
+local Sneak = "Sneak"
+local Spear = "Spear"
+local Speechcraft = "Speechcraft"
+local Unarmored = "Unarmored"
+
+
+local Attributes = { Strength, Intelligence, Willpower, Agility,
+                     Speed, Endurance, Personality, Luck }
+
+local Skills = { Block, Armorer, Mediumarmor, Heavyarmor, Bluntweapon, Longblade, Axe, Spear,
+                 Athletics, Enchant, Destruction, Alteration, Illusion, Conjuration, Mysticism,
+                 Restoration, Alchemy, Unarmored, Security, Sneak, Acrobatics, Lightarmor,
+                 Shortblade, Marksman, Mercantile, Speechcraft, Handtohand }
 
 
 local function dbg(msg)
@@ -53,8 +114,7 @@ local function randInt(rangeStart, rangeEnd)
    math.random()
    math.random()
    math.random()
-   -- TODO: math.ceil() does not work at all.  Nor does math.floor()
-   return math.ceil(math.random(rangeStart, rangeEnd))
+   return math.random(rangeStart, rangeEnd)
 end
 
 
@@ -73,18 +133,24 @@ end
 
 
 local function getSkillValue(pid, skill)
+   --[[ Helper function for retrieving a player's skill value. ]]--
    dbg("Called \"getSkillValue\" for pid \"" .. pid .. "\" and skill \"" .. skill .. "\"")
    return Players[pid].data.skills[skill]
 end
 
 
 local function getCustomVar(pid, key)
+   --[[ Helper function for retrieving a player's custom NCGD variable value. ]]--
    dbg("Called \"getCustomVar\" for pid \"" .. pid .. "\" and key \"" .. key .. "\"")
    return Players[pid].data.customVariables[key]
 end
 
 
 local function setCustomVar(pid, key, val, save)
+   --[[
+      Helper function for saving a player's custom NCGD variable key and value.
+      Player saving is disabled by default.
+   ]]--
    dbg("Called \"setCustomVar\" for pid \"" .. pid .. "\", key \"" .. key .. "\", and value \"" .. val .. "\".")
 
    Players[pid].data.customVariables["NCGD"][key] = val
@@ -95,42 +161,35 @@ local function setCustomVar(pid, key, val, save)
 end
 
 
-local function calculateDecayMemory(pid)
-   dbg("Called \"calculateDecayMemory\" for pid \"" .. pid .. "\"")
-   local baseInt = getCustomVar(pid, "baseIntelligence")
-   local decayMemory
-
-   -- Values represent hours
-   local one_day = 24
-   local three_days = 72
-   local seven_days = 168
-   local fourteen_days = 336
-
+local function getRealSkillValue(pid, skill)
+   --[[
+      Takes a skill name and returns the value less any fortifications.
+   ]]--
+   dbg("Called \"getRealSkillValue\" for pid \"" .. pid .. "\" and skill \"" .. skill .. "\"")
    local player = Players[pid]
-   local playerLevel = player.data.stats.level
 
-   decayMemory = playerLevel * playerLevel
-   decayMemory = (baseInt * baseInt) / decayMemory
+   -- Record current skill value
+   local currentSkill = player.data.skills[skill]
 
-   if ncgdConfig.decayRate == "slow" then
-      decayMemory = decayMemory * fourteen_days
-      decayMemory = decayMemory + three_days
+   -- NCGD uses 1000 as a very high value for finding fortifications
+   local magicNumber = 1000
 
-   elseif ncgdConfig.decayRate == "standard" then
-      decayMemory = decayMemory * seven_days
-      decayMemory = decayMemory + one_day
+   -- Set base skill to a known value
+   player.data.skills[skill] = magicNumber
 
-   elseif ncgdConfig.decayRate == "fast" then
-      decayMemory = decayMemory * three_days
-      decayMemory = decayMemory + 12
-   end
+   -- Get fortification, if any
+   local fortification = player.data.skills[skill] - magicNumber
 
-   setCustomVar(pid, "decayMemory", decayMemory)
+   -- Return the base skill value, less any fortification
+   return currentSkill - fortification
 end
 
 
-local function getNewAttributeValue(pid, attribute)
-   dbg("Called \"getNewAttributeValue\" for pid \"" .. pid .. "\" and attribute \"" .. attribute .. "\"")
+local function getRealAttributeValue(pid, attribute)
+   --[[
+      Takes an attribute name and returns the value less any fortifications.
+   ]]--
+   dbg("Called \"getRealAttributeValue\" for pid \"" .. pid .. "\" and attribute \"" .. attribute .. "\"")
    local player = Players[pid]
 
    -- Record current attribute value
@@ -148,6 +207,7 @@ local function getNewAttributeValue(pid, attribute)
    -- Find the base attribute value, less any fortification
    local baseValue = currentAttribute - fortification
 
+   -- TODO: only do this on chargen
    -- Reduce attribute to account for gain from skills
    local newValue = baseValue / 2
 
@@ -155,207 +215,28 @@ local function getNewAttributeValue(pid, attribute)
 end
 
 
-local function checkForSkillDecay(pid, skill)
-   dbg("Called \"checkForSkillDecay\" for pid \"" .. pid .. "\" and skill \"" .. skill .. "\"")
-   local player = Players[pid]
-   -- See line 4877 in NCGD_Main
-   local decaySkill = getCustomVar(pid, "decay" .. skill)
-   local decayMemory = getCustomVar(pid, "decayMemory")
-   local masterySkill = getCustomVar(pid, "mastery" .. skill)
-   local maxSkill = config.maxSkillValue
-   local oldDay = getCustomVar(pid, "oldDay")
-   local oldHour = getCustomVar(pid, "oldHour")
-   local skillVal = getSkillValue(pid, skill)
-   local timePassed = WorldInstance.data.time.hour
-
-   while oldDay < WorldInstance.data.time.daysPassed do
-      timePassed = timePassed + 24
-      oldDay = oldDay + 1
-   end
-
-   timePassed = timePassed - oldHour
-   oldHour = WorldInstance.data.time.hour
-   decaySkill = decaySkill + timePassed
-
-   if decaySkill > decayMemory then
-      decaySkill = 0
-
-      masterySkill = 25 * masterySkill
-      skillVal = skillVal + masterySkill
-      masterySkill = maxSkill / 2
-
-      if skillVal > masterySkill then
-         if skillVal > 15 then
-            -- Skill has decayed
-            skillVal = skillVal - 1
-
-            setCustomVar(pid, "skill" .. skill, skillVal)
-            player.data.skills[skill] = skillVal
-            savePlayer(pid)
-
-            tes3mp.MessageBox(pid, -1, "Your " .. skill .. " skill has decayed to " .. tostring(player.data.skills[skill]) .. ".")
-            -- TODO: the mwscript version then does this:
-            -- set skillBlock to 0	; Force recheck
-            -- But I don't think I need this mechanism to "force a recheck"
-         end
-      end
-   end
-
-   -- Save up
-   setCustomVar(pid, "decay" .. skill, decaySkill)
-   setCustomVar(pid, "mastery" .. skill, masterySkill)
-   setCustomVar(pid, "oldDay", oldDay)
-   setCustomVar(pid, "oldHour", oldHour)
-   setCustomVar(pid, "timePassed", timePassed)
-end
-
-
-local function calculateSkillUpdate(pid, skill)
-   dbg("Called \"calculateSkillUpdate\" for pid \"" .. pid .. "\" and skill \"" .. skill .. "\"")
-   local player = Players[pid]
-
-   local skillProgress = getCustomVar(pid, "progress" .. skill)
-   local skillVal = getCustomVar(pid, "skill" .. skill)
-   local actualVal = player.data.skills[skill]
-
-   if skillVal ~= actualVal then
-      
-   end
-
-   --[[
-	; Combat skill check
-	if (skillBlock != player->getBlock)
-		set skillBlock to player->getBlock
-		player->setBlock 1000
-		set temp2 to player->getBlock - 1000
-		set skillBlock to skillBlock - temp2
-		if (skillBlock != baseBlock) ; If Block skill has changed, recalculate attributes
-			set recalcSTR to 1
-			set recalcAGI to 1
-			set recalcEND to 1
-		endif
-		if (skillBlock > baseBlock)
-			set temp to skillBlock
-			set temp2 to 25 * masteryBlock
-			set temp to temp + temp2
-			if (temp < maxBlock)
-				if (progressBlock < masteryBlock)
-					set progressBlock to progressBlock + 1
-				else
-					set temp to temp + 1
-					set skillBlock to skillBlock + 1
-					set progressBlock to 0
-					MessageBox "Your Block skill increased to %.0g.", temp
-					set decayBlock to decayBlock / 2
-				endif
-			elseif (progressBlock >= masteryBlock)
-				set maxBlock to temp
-			endif
-			if (progressBlock < masteryBlock)
-				set skillBlock to skillBlock - 1
-				player->setBlock skillBlock
-				set progressBlock to progressBlock + 1
-				set skillBlock to player->getBlock
-				MessageBox "You need more training before your skill will improve.  (%.0g out of %.0g)", progressBlock, (masteryBlock+1)
-			elseif (skillBlock < 100)
-				if (masteryBlock > 0)
-					MessageBox "Your Block skill increased to %.0g.", temp
-				endif
-				set baseBlock to skillBlock
-				player->setBlock skillBlock
-				set progressBlock to 0
-				set skillBlock to player->getBlock
-				set decayBlock to decayBlock / 2
-			else
-				if (masteryBlock > 0)
-					MessageBox "Your Block skill increased to %.0g.", temp
-				endif
-				set masteryBlock to masteryBlock + 1
-				set baseBlock to skillBlock - 25
-				player->setBlock baseBlock
-				set progressBlock to 0
-				set skillBlock to player->getBlock
-				set decayBlock to decayBlock / 2
-				set temp2 to masteryBlock
-				player->removeSpell "NCGD_block25"
-				player->removeSpell "NCGD_block50"
-				player->removeSpell "NCGD_block100"
-				player->removeSpell "NCGD_block200"
-				if (temp2 >= 8)
-					player->addSpell "NCGD_block200"
-					set temp2 to temp2 - 8
-				endif
-				if (temp2 >= 4)
-					player->addSpell "NCGD_block100"
-					set temp2 to temp2 - 4
-				endif
-				if (temp2 >= 2)
-					player->addSpell "NCGD_block50"
-					set temp2 to temp2 - 2
-				endif
-				if (temp2 >= 1)
-					player->addSpell "NCGD_block25"
-				endif
-			endif
-		elseif (masteryBlock > 0)
-			if(skillBlock < 75)
-				set masteryBlock to masteryBlock - 1
-				set baseBlock to skillBlock + 25
-				player->setBlock baseBlock
-				set skillBlock to player->getBlock
-				set temp2 to masteryBlock
-				player->removeSpell "NCGD_block25"
-				player->removeSpell "NCGD_block50"
-				player->removeSpell "NCGD_block100"
-				player->removeSpell "NCGD_block200"
-				if (temp2 >= 8)
-					player->addSpell "NCGD_block200"
-					set temp2 to temp2 - 8
-				endif
-				if (temp2 >= 4)
-					player->addSpell "NCGD_block100"
-					set temp2 to temp2 - 4
-				endif
-				if (temp2 >= 2)
-					player->addSpell "NCGD_block50"
-					set temp2 to temp2 - 2
-				endif
-				if (temp2 >= 1)
-					player->addSpell "NCGD_block25"
-				endif
-			else
-				set baseBlock to skillBlock
-				player->setBlock skillBlock
-				set skillBlock to player->getBlock
-			endif
-		else
-			set baseBlock to skillBlock
-			player->setBlock skillBlock
-			set skillBlock to player->getBlock
-		endif
-	elseif (skillArmorer != player->getArmorer)
-   ]]--
-end
-
-
 local function initAttribute(pid, attribute)
+   --[[ Initialize attribute data for new players. ]]--
    dbg("Called \"initAttribute\" for pid \"" .. pid .. "\" and attribute \"" .. attribute .. "\"")
 
-   local config = require("config")
+   -- local config = require("config")
    -- Save old values
    local oldMaxAttributeValue = config.maxAttributeValue
    local oldMaxSkillValue = config.maxSkillValue
 
-   -- TODO: maybe this is not needed.  Temporarily increase values
+   local player = Players[pid]
+
+   -- TODO: maybe this is not needed.  Temporarily increase values by tenfold
    config.maxAttributeValue = config.maxAttributeValue * 10
    config.maxSkillValue = config.maxSkillValue * 10
 
-   local player = Players[pid]
+   player.data.attributes[attribute] = getRealAttributeValue(pid, attribute)
 
-   player.data.attributes[attribute] = getNewAttributeValue(pid, attribute)
-
-   -- Record the base attribute value for future reference, don't save because we're about to do that
+   -- Record the base attribute value for future reference
    setCustomVar(pid, "base" .. attribute, player.data.attributes[attribute])
+
+   -- Record the start attribute value for future reference
+   setCustomVar(pid, "start" .. attribute, player.data.attributes[attribute])
 
    -- Revert values.
    config.maxAttributeValue = oldMaxAttributeValue
@@ -364,6 +245,7 @@ end
 
 
 local function initSkill(pid, skill)
+   --[[ Initialize skill data for new players. ]]--
    dbg("Called \"initSkill\" for pid \"" .. pid .. "\" and skill \"" .. skill .. "\"")
    setCustomVar(pid, "progress" .. skill, 0)
    setCustomVar(pid, "skill" .. skill, getSkillValue(pid, skill))
@@ -371,6 +253,7 @@ end
 
 
 local function initSkillDecay(pid, skill)
+   --[[ Initialize decay data for new players. ]]--
    dbg("Called \"initSkillDecay\" for pid \"" .. pid .. "\" and skill \"" .. skill .. "\"")
 
    local decayRate = randInt(0, 359)
@@ -378,13 +261,368 @@ local function initSkillDecay(pid, skill)
    -- NCGD uses 30 for this.  I'm not sure if that is a special number or what.
    local magicNumber = 30
 
-   setCustomVar(pid, "decay" .. skill, decayRate / magicNumber)
+   setCustomVar(pid, "decay" .. skill, math.floor(decayRate / magicNumber))
 end
 
 
-local function initSkillMastery(pid, skill)
-   dbg("Called \"initSkillMastery\" for pid \"" .. pid .. "\" and skill \"" .. skill .. "\"")
-   setCustomVar(pid, "mastery" .. skill, 0)
+local function getAttrRecalcFromSkillChange(skill)
+   --[[
+      Returns a table of attribute names that need to
+      be recalculated based on the input skill.
+   ]]--
+   local toRecalc = {}
+
+   if skill == Block then
+      table.insert(toRecalc, Agility)
+      table.insert(toRecalc, Endurance)
+      table.insert(toRecalc, Strength)
+
+   elseif skill == Armorer then
+      table.insert(toRecalc, Endurance)
+      table.insert(toRecalc, Personality)
+      table.insert(toRecalc, Strength)
+
+   elseif skill == Mediumarmor then
+      table.insert(toRecalc, Endurance)
+      table.insert(toRecalc, Speed)
+      table.insert(toRecalc, Willpower)
+
+   elseif skill == Heavyarmor then
+      table.insert(toRecalc, Endurance)
+      table.insert(toRecalc, Speed)
+      table.insert(toRecalc, Strength)
+
+   elseif skill == Bluntweapon then
+      table.insert(toRecalc, Endurance)
+      table.insert(toRecalc, Strength)
+      table.insert(toRecalc, Willpower)
+
+   elseif skill == Longblade then
+      table.insert(toRecalc, Agility)
+      table.insert(toRecalc, Speed)
+      table.insert(toRecalc, Strength)
+
+   elseif skill == Axe then
+      table.insert(toRecalc, Agility)
+      table.insert(toRecalc, Strength)
+      table.insert(toRecalc, Willpower)
+
+   elseif skill == Spear then
+      table.insert(toRecalc, Endurance)
+      table.insert(toRecalc, Speed)
+      table.insert(toRecalc, Strength)
+
+   elseif skill == Athletics then
+      table.insert(toRecalc, Endurance)
+      table.insert(toRecalc, Speed)
+      table.insert(toRecalc, Willpower)
+
+      -- Magical skills
+   elseif skill == Enchant then
+      table.insert(toRecalc, Intelligence)
+      table.insert(toRecalc, Personality)
+      table.insert(toRecalc, Willpower)
+
+   elseif skill == Destruction then
+      table.insert(toRecalc, Intelligence)
+      table.insert(toRecalc, Personality)
+      table.insert(toRecalc, Willpower)
+
+   elseif skill == Alteration then
+      table.insert(toRecalc, Intelligence)
+      table.insert(toRecalc, Speed)
+      table.insert(toRecalc, Willpower)
+
+   elseif skill == Illusion then
+      table.insert(toRecalc, Agility)
+      table.insert(toRecalc, Intelligence)
+      table.insert(toRecalc, Personality)
+
+   elseif skill == Conjuration then
+      table.insert(toRecalc, Intelligence)
+      table.insert(toRecalc, Personality)
+      table.insert(toRecalc, Willpower)
+
+   elseif skill == Mysticism then
+      table.insert(toRecalc, Intelligence)
+      table.insert(toRecalc, Personality)
+      table.insert(toRecalc, Willpower)
+
+   elseif skill == Restoration then
+      table.insert(toRecalc, Intelligence)
+      table.insert(toRecalc, Personality)
+      table.insert(toRecalc, Willpower)
+
+   elseif skill == Alchemy then
+      table.insert(toRecalc, Endurance)
+      table.insert(toRecalc, Intelligence)
+      table.insert(toRecalc, Personality)
+
+   elseif skill == Unarmored then
+      table.insert(toRecalc, Endurance)
+      table.insert(toRecalc, Speed)
+      table.insert(toRecalc, Willpower)
+
+      -- Thief skills
+   elseif skill == Security then
+      table.insert(toRecalc, Agility)
+      table.insert(toRecalc, Intelligence)
+      table.insert(toRecalc, Personality)
+
+   elseif skill == Sneak then
+      table.insert(toRecalc, Agility)
+      table.insert(toRecalc, Personality)
+      table.insert(toRecalc, Speed)
+
+   elseif skill == Acrobatics then
+      table.insert(toRecalc, Agility)
+      table.insert(toRecalc, Speed)
+      table.insert(toRecalc, Strength)
+
+   elseif skill == Lightarmor then
+      table.insert(toRecalc, Agility)
+      table.insert(toRecalc, Endurance)
+      table.insert(toRecalc, Speed)
+
+   elseif skill == Shortblade then
+      table.insert(toRecalc, Agility)
+      table.insert(toRecalc, Endurance)
+      table.insert(toRecalc, Speed)
+
+   elseif skill == Marksman then
+      table.insert(toRecalc, Agility)
+      table.insert(toRecalc, Speed)
+      table.insert(toRecalc, Strength)
+
+   elseif skill == Mercantile then
+      table.insert(toRecalc, Intelligence)
+      table.insert(toRecalc, Personality)
+      table.insert(toRecalc, Willpower)
+
+   elseif skill == Speechcraft then
+      table.insert(toRecalc, Intelligence)
+      table.insert(toRecalc, Personality)
+      table.insert(toRecalc, Willpower)
+
+   elseif skill == Handtohand then
+      table.insert(toRecalc, Agility)
+      table.insert(toRecalc, Endurance)
+      table.insert(toRecalc, Strength)
+   end
+
+   return toRecalc
+end
+
+
+local function getDecayRate()
+   --[[ Helper for returning the current global decay rate value. ]]--
+   if ncgdConfig.decayRate == "fast" then
+      return FAST_DECAY
+   elseif ncgdConfig.decayRate == "standard" then
+      return STANDARD_DECAY
+   elseif ncgdConfig.decayRate == "slow" then
+      return SLOW_DECAY
+   else
+      return NO_DECAY  -- Default to no decay if for some reason there's no configured value...
+   end
+end
+
+
+local function getGrowthRate()
+   --[[ Helper for returning the current global growth rate value. ]]--
+   if ncgdConfig.growthRate == "fast" then
+      return FAST_GROWTH
+   elseif ncgdConfig.growthRate == "standard" then
+      return STANDARD_GROWTH
+   elseif ncgdConfig.growthRate == "slow" then
+      return SLOW_GROWTH
+   else
+      return SLOW_GROWTH  -- Default to slow growth if for some reason there's no configured value...
+   end
+end
+
+
+local function calculateAttrXP(pid, skillTable)
+   --[[
+      Calculate an attibute's "XP" based on the values of given
+      skills listed in 'skillTable' and return this value.
+   ]]--
+   local attrXP = 0
+   local xpPlusGrowth = 0
+
+   for _, skill in pairs(skillTable) do
+      local skillBase = getCustomVar(pid, "base" .. skill)
+
+      -- TODO: better understand this math/these calculations...
+      xpPlusGrowth = xpPlusGrowth + skillBase
+      xpPlusGrowth = xpPlusGrowth * xpPlusGrowth
+      attrXP = attrXP + xpPlusGrowth
+   end
+
+   return attrXP
+end
+
+
+local function calculateAndApplyDecay(pid)
+   --[[ TODO ]]--
+end
+
+
+local function recalcAttributes(pid, toRecalc)
+   --[[
+      Recalculate a player's attributes based on their current skill values.
+
+      The attributes to be recalculated are provided in the 'toRecalc' table.
+   ]]--
+   local player = Players[pid]
+
+   for _, attribute in pairs(toRecalc) do
+      local baseAttr = getCustomVar(pid, "base" .. attribute)
+      local realAttr = getRealAttributeValue(pid, attribute)
+      local startAttr = getCustomVar(pid, "start" .. attribute)
+
+      if baseAttr ~= realAttr then
+         -- At this point, NCGD prompts the player with a message stating their
+         -- attribute is off.  They can opt to revert it or keep the new value.
+         -- In the context of TES3MP, it's better to "fix" the problem transparently.
+         -- TODO: Maybe pop up a message
+         realAttr = baseAttr
+         player.data.attributes[attribute] = realAttr
+         savePlayer(pid)
+      end
+
+      local attrXP
+      local xpPlusGrowth
+
+      if attribute == Strength then
+         attrXP = calculateAttrXP(pid, { Longblade, Bluntweapon, Axe, Armorer, Heavyarmor,
+                                         Spear, Block, Acrobatics, Marksman, Handtohand })
+
+      elseif attribute == Intelligence then
+         attrXP = calculateAttrXP(pid, { Alchemy, Enchant, Conjuration, Alteration, Destruction,
+                                         Mysticism, Illusion, Security, Mercantile, Speechcraft })
+
+      elseif attribute == Willpower then
+         attrXP = calculateAttrXP(pid, { Bluntweapon, Axe, Mediumarmor, Athletics, Enchant,
+                                         Conjuration, Alteration, Destruction, Mysticism,
+                                         Restoration, Unarmored, Mercantile, Speechcraft })
+
+      elseif attribute == Agility then
+         attrXP = calculateAttrXP(pid, { Longblade, Axe, Block, Illusion, Acrobatics, Security,
+                                         Sneak, Lightarmor, Marksman, Shortblade, Handtohand,
+                                         Mercantile, Speechcraft })
+
+      elseif attribute == Speed then
+         attrXP = calculateAttrXP(pid, { Longblade, Mediumarmor, Heavyarmor, Spear, Athletics,
+                                         Alteration, Unarmored, Acrobatics, Sneak, Lightarmor,
+                                         Marksman, Shortblade })
+
+      elseif attribute == Endurance then
+         attrXP = calculateAttrXP(pid, { Bluntweapon, Armorer, Heavyarmor, Spear, Athletics,
+                                         Alteration, Unarmored, Acrobatics, Sneak, Lightarmor,
+                                         Marksman, Shortblade })
+
+      elseif attribute == Personality then
+         attrXP = calculateAttrXP(pid, { Armorer, Alchemy, Enchant, Conjuration, Destruction,
+                                         Mysticism, Restoration, Illusion, Security, Sneak,
+                                         Shortblade, Mercantile, Speechcraft })
+      end
+
+      -- Adjust XP based on growth speed
+      xpPlusGrowth = attrXP * getGrowthRate()
+      -- TODO: what is this magic number????  the number of skills?
+      attrXP = xpPlusGrowth / 27
+
+      -- Convert XP into attributes
+      xpPlusGrowth = math.sqrt(attrXP)
+      attrXP = xpPlusGrowth + startAttr  -- Sets base attr to new value
+
+      -- TODO: need to check against the server's max allowed attribute
+
+      if attrXP > baseAttr and baseAttr >= config.maxAttributeValue then
+         -- config.maxAttributeValue reached
+         tes3mp.MessageBox(pid, -1, "You have reached the server attribute cap for " .. attribute .. "!")
+         return
+
+      elseif attrXP > baseAttr and not baseAttr >= config.maxAttributeValue then
+         tes3mp.MessageBox(pid, -1, "Your " .. attribute .. " has increased to " .. tostring(attrXP) .. ".")
+
+      elseif attrXP < baseAttr then
+         tes3mp.MessageBox(pid, -1, "Your " .. attribute .. " has decayed to " .. tostring(attrXP) .. ".")
+      end
+
+      -- Update internal NCGD data and save
+      baseAttr = attrXP
+      setCustomVar(pid, "base" .. attribute, baseAttr)
+
+      -- Update the player's data and save
+      player.data.attributes[attribute] = baseAttr
+      savePlayer(pid)
+
+      -- TODO: ensure luck gets recalculated correctly
+      recalcAttributes(pid, { Luck })
+   end
+end
+
+
+local function handleSkillIncrease(pid, skill)
+   --[[
+      Sync skill increases into NCGD custom data and apply
+      decrease to the decay progress of the given skill.
+
+      If the server's config.maxSkillValue is reached, display
+      a message stating this and do not apply the increase.
+   ]]--
+   dbg("Called \"handleSkillIncrease\" for pid \"" .. pid .. "\" and skill \"" .. skill .. "\"")
+
+   local skillBase = getCustomVar(pid, "base" .. skill)
+   local skillDecay = getCustomVar(pid, "decay" .. skill)
+   local skillMax = config.maxSkillValue
+   local skillProgress = getCustomVar(pid, "progress" .. skill)
+   local skillVal = getCustomVar(pid, "skill" .. skill)
+   local player = Players[pid]
+   local playerVal = getRealSkillValue(pid, skill)
+
+   if skillVal ~= playerVal then
+      -- Store the player value as the new skill value
+      skillVal = playerVal
+      setCustomVar(pid, "skill" .. skill, skillVal)
+
+      -- Recalculate attributes as needed
+      local attrToRecalc = getAttrRecalcFromSkillChange(skill)
+      recalcAttributes(pid, attrToRecalc)
+
+      if skillVal > skillBase then
+
+         if skillVal < skillMax then
+            skillProgress = skillProgress + 1
+            setCustomVar(pid, "progress" .. skill, skillProgress)
+
+            skillVal = skillVal + 1
+            setCustomVar(pid, "skill" .. skill, skillVal)
+
+            skillBase = skillVal
+            setCustomVar(pid, "base" .. skill, skillBase)
+
+            skillProgress = 0
+            setCustomVar(pid, "progress" .. skill, skillProgress)
+
+            skillDecay = skillDecay / 2
+            setCustomVar(pid, "decay" .. skill, skillDecay)
+
+            -- TODO: do i need to do this?
+            player.data.skills[skill] = skillVal
+            savePlayer(pid)
+
+            -- TODO: do i need to do this?
+            -- tes3mp.MessageBox(pid, -1,
+            --                   "Your " .. skill .. " skill has increased to " .. tostring(skillVal) .. ".")
+         else
+            -- skillMax reached
+            tes3mp.MessageBox(pid, -1, "You have reached the server skill cap for " .. skill .. "!")
+         end
+      end
+   end
 end
 
 
@@ -402,14 +640,6 @@ function ncgdTES3MP.OnPlayerEndChargen(eventStatus, pid)
 
       Players[pid].data.customVariables["NCGD"] = {}
 
-      local Attributes = { "Strength", "Intelligence", "Willpower", "Agility",
-                           "Speed", "Endurance", "Personality", "Luck" }
-
-      local Skills = { "Block", "Armorer", "Mediumarmor", "Heavyarmor", "Bluntweapon", "Longblade", "Axe", "Spear",
-                       "Athletics", "Enchant", "Destruction", "Alteration", "Illusion", "Conjuration", "Mysticism",
-                       "Restoration", "Alchemy", "Unarmored", "Security", "Sneak", "Acrobatics", "Lightarmor",
-                       "Shortblade", "Marksman", "Mercantile", "Speechcraft", "Handtohand" }
-
       for _, attribute in pairs(Attributes) do
          initAttribute(pid, attribute)
       end
@@ -418,11 +648,10 @@ function ncgdTES3MP.OnPlayerEndChargen(eventStatus, pid)
          initSkill(pid, skill)
       end
 
-      for _, skill in pairs(Skills) do
-         initSkillMastery(pid, skill)
-      end
+      -- Store the decay rate regardless of whether it's enabled or not.
+      setCustomVar(pid, "decayRate", getDecayRate())
 
-      if ncgdConfig.decayRate ~= nil then
+      if getDecayRate() ~= NO_DECAY then
          -- Begin decay initialization for all skills
 
          math.randomseed(os.time())
@@ -453,7 +682,13 @@ function ncgdTES3MP.OnPlayerAttribute(eventStatus, pid)
       end
 
       info("Called \"ncgdTES3MP.OnPlayerAttribute\" for pid \"" .. pid .. "\"")
-      -- TODO: handle stuff here
+
+      -- TODO: handle stuff here as needed
+
+      -- Allow custom and default behavior
+      local customHandlers = true
+      local defaultHandler = true
+      customEventHooks.makeEventStatus(defaultHandler, customHandlers)
    end
 end
 
@@ -469,6 +704,7 @@ function ncgdTES3MP.OnPlayerDeath(eventStatus, pid)
       end
 
       info("Called \"ncgdTES3MP.OnPlayerDeath\" for pid \"" .. pid .. "\"")
+
       -- TODO: make decay happen faster or more slowly depending on config.  or neither.
    end
 end
@@ -485,7 +721,13 @@ function ncgdTES3MP.OnPlayerLevel(eventStatus, pid)
       end
 
       info("Called \"ncgdTES3MP.OnPlayerLevel\" for pid \"" .. pid .. "\"")
-      -- TODO: handle stuff here
+
+      -- TODO: handle stuff here as needed
+
+      -- Allow custom behavior, block the default
+      local customHandlers = true
+      local defaultHandler = false
+      customEventHooks.makeEventStatus(defaultHandler, customHandlers)
    end
 end
 
@@ -501,21 +743,36 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
       end
 
       info("Called \"ncgdTES3MP.OnPlayerSkill\" for pid \"" .. pid .. "\"")
-      -- TODO: calculate attributes and level
 
-      -- Please no custom or default behavior for skills.
-      eventStatus.validCustomHandlers = false
-      eventStatus.validDefaultHandler = false
+      for _, skill in pairs(Skills) do
+         local storedSkillVal = getCustomVar(pid, "skill" .. skill)
 
-      local player = Players[pid]
+         -- The stored skill value is nil for new players.
+         if storedSkillVal ~= nil then
+            handleSkillIncrease(pid, skill)
+
+            if getDecayRate() ~= NO_DECAY then
+               calculateAndApplyDecay(pid)
+            end
+
+         end
+      end
+
+      -- Allow custom and default behavior
+      local customHandlers = true
+      local defaultHandler = true
+      customEventHooks.makeEventStatus(defaultHandler, customHandlers)
    end
 end
 
--- TODO: https://github.com/TES3MP/CoreScripts/blob/0.7.0/Tutorial.md#custom-events
 
 -- TODO: support player import by inspecting data on login and looking for the NCGD customVariables key
-customEventHooks.registerHandler("OnPlayerAttribute", ncgdTES3MP.OnPlayerAttribute)
+-- https://github.com/TES3MP/CoreScripts/blob/0.7.0/Tutorial.md#custom-events
+
+
 customEventHooks.registerHandler("OnPlayerDeath", ncgdTES3MP.OnPlayerDeath)
 customEventHooks.registerHandler("OnPlayerEndCharGen", ncgdTES3MP.OnPlayerEndChargen)
-customEventHooks.registerHandler("OnPlayerLevel", ncgdTES3MP.OnPlayerLevel)
+
+customEventHooks.registerValidator("OnPlayerAttribute", ncgdTES3MP.OnPlayerAttribute)
+customEventHooks.registerValidator("OnPlayerLevel", ncgdTES3MP.OnPlayerLevel)
 customEventHooks.registerValidator("OnPlayerSkill", ncgdTES3MP.OnPlayerSkill)
