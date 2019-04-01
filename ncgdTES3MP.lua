@@ -142,7 +142,7 @@ end
 local function getCustomVar(pid, key)
    --[[ Helper function for retrieving a player's custom NCGD variable value. ]]--
    dbg("Called \"getCustomVar\" for pid \"" .. pid .. "\" and key \"" .. key .. "\"")
-   return Players[pid].data.customVariables[key]
+   return Players[pid].data.customVariables["NCGD"][key]
 end
 
 
