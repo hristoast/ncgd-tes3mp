@@ -4,18 +4,25 @@ local ncgdConfig = {}
 
 
 -- TODO: Use DataManager
+-- deathDecay: true or false
 ncgdConfig.deathDecay = true
+
+-- levelCap: numerical level cap
 ncgdConfig.levelCap = nil
+
+-- decayRate: nil, "slow", "standard", or "fast"
+-- quotes must be included
 ncgdConfig.decayRate = "fast"
+
+-- growthRate: "slow", "standard", or "fast"
+-- quotes must be included
 ncgdConfig.growthRate = "slow"
 
 -- If you don't want accelerated decay after death, set this to false
 ncgdConfig.ForceLoadOnPlayerDeath = true
 
--- Setting these to false will break the entire script if custom handlers are blocked for the event
+-- Setting these to false will break the script
 ncgdConfig.ForceLoadOnPlayerLevel = true
-
--- ccSuite hijacks chargen, but we don't conflict with it... Default to true so NCGD can coexist with it
 ncgdConfig.ForceLoadOnPlayerEndChargen = true
 
 -- END user config for ncgdTES3MP -- Don't edit below here!
@@ -657,9 +664,8 @@ end
 
 function ncgdTES3MP.OnPlayerEndChargen(eventStatus, pid)
    if not eventStatus.validCustomHandlers and not ncgdConfig.ForceLoadOnPlayerEndChargen then
-      err("validCustomHandlers for `OnPlayerEndChargen` have been set to false!" ..
+      fatal("validCustomHandlers for `OnPlayerEndChargen` have been set to false!" ..
              "  ncgdTES3MP requires custom handlers to operate!")
-      fatal("Exiting the server now... Please set `ForceLoad` to true if you are sure ncgdTES3MP should load anyways.")
    else
       if ncgdConfig.ForceLoadOnPlayerEndChargen then
          warn("\"ncgdTES3MP.OnPlayerEndChargen\" is being force loaded!!")
@@ -705,9 +711,8 @@ end
 
 function ncgdTES3MP.OnPlayerDeath(eventStatus, pid)
    if not eventStatus.validCustomHandlers and not ncgdConfig.ForceLoadOnPlayerDeath then
-      err("validCustomHandlers for `OnPlayerDeath` have been set to false!" ..
+      fatal("validCustomHandlers for `OnPlayerDeath` have been set to false!" ..
              "  ncgdTES3MP requires custom handlers to operate!")
-      fatal("Exiting the server now... Please set `ForceLoad` to true if you are sure ncgdTES3MP should load anyways.")
    else
       if ncgdConfig.ForceLoadOnPlayerDeath then
          warn("\"ncgdTES3MP.OnPlayerDeath\" is being force loaded!!")
@@ -722,9 +727,8 @@ end
 
 function ncgdTES3MP.OnPlayerLevel(eventStatus, pid)
    if not eventStatus.validCustomHandlers and not ncgdConfig.ForceLoadOnPlayerLevel then
-      err("validCustomHandlers for `OnPlayerLevel` have been set to false!" ..
+      fatal("validCustomHandlers for `OnPlayerLevel` have been set to false!" ..
              "  ncgdTES3MP requires custom handlers to operate!")
-      fatal("Exiting the server now... Please set `ForceLoad` to true if you are sure ncgdTES3MP should load anyways.")
    else
       if ncgdConfig.ForceLoadOnPlayerLevel then
          warn("\"ncgdTES3MP.OnPlayerLevel\" is being force loaded!!")
@@ -755,10 +759,6 @@ function ncgdTES3MP.OnPlayerLevel(eventStatus, pid)
       customEventHooks.makeEventStatus(defaultHandler, customHandlers)
    end
 end
-
-
--- TODO: support player import by inspecting data on login and looking for the NCGD customVariables key
--- https://github.com/TES3MP/CoreScripts/blob/0.7.0/Tutorial.md#custom-events
 
 
 customEventHooks.registerHandler("OnPlayerDeath", ncgdTES3MP.OnPlayerDeath)
