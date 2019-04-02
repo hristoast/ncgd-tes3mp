@@ -738,6 +738,8 @@ function ncgdTES3MP.OnPlayerLevel(eventStatus, pid)
 
          -- The stored skill value is nil for new players.
          if storedSkillVal ~= nil and playerVal > storedSkillVal then
+            dbg("Player \"" .. Players[pid].accountName .. "\" has increased their " .. skill
+                   .. " to " .. tostring(playerVal) .. " from " .. storedSkillVal .. ".")
             handleSkillIncrease(pid, skill, storedSkillVal, playerVal)
 
             if getDecayRate() ~= NO_DECAY then
