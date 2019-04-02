@@ -227,10 +227,8 @@ local function getRealAttributeValue(pid, attribute, reduce)
 
    local newValue = baseValue
 
-   if reduce ~= nil then
-      -- Reduce attribute to account for gain from skills
-      newValue = baseValue / 2
-   end
+   -- Reduce attribute to account for gain from skills
+   newValue = baseValue / 2
 
    -- Put the attribute value back
    player.data.attributes[attribute] = currentAttribute
@@ -564,7 +562,10 @@ local function recalcAttributes(pid, toRecalc)
 
       if attrXP ~= nil then
          if attribute == Luck then
+            attrXP = calculateAttrXP(pid, Skills)
+
             local playerLevel = player.data.stats.level
+
             xpPlusGrowth = attrXP * 2
             xpPlusGrowth = xpPlusGrowth / 27
             xpPlusGrowth = math.sqrt(xpPlusGrowth)
