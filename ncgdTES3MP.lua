@@ -7,9 +7,6 @@ local ncgdConfig = {}
 -- deathDecay: true or false
 ncgdConfig.deathDecay = true
 
--- levelCap: numerical level cap
-ncgdConfig.levelCap = nil
-
 -- decayRate: nil, "slow", "standard", or "fast"
 -- quotes must be included
 ncgdConfig.decayRate = "fast"
