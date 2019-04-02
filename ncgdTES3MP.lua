@@ -563,6 +563,34 @@ local function recalcAttributes(pid, toRecalc)
       end
 
       if attrXP ~= nil then
+         if attribute == Luck then
+            local playerLevel = player.data.stats.level
+            xpPlusGrowth = attrXP * 2
+            xpPlusGrowth = xpPlusGrowth / 27
+            xpPlusGrowth = math.sqrt(xpPlusGrowth)
+
+            if xpPlusGrowth > 25 then
+               if xpPlusGrowth > playerLevel then
+                  dbg("Player \"" .. player.accountName .. "\" has reached level " ..
+                         xpPlusGrowth .. " from level " .. playerLevel .. ".")
+                  tes3mp.MessageBox(pid, -1, "You have reached level " .. xpPlusGrowth .. ".")
+               elseif xpPlusGrowth < playerLevel then
+                  dbg("Player \"" .. player.accountName .. "\" has regressed to level " ..
+                         xpPlusGrowth .. " from level " .. playerLevel .. ".")
+                  tes3mp.MessageBox(pid, -1, "You have regressed to level " .. xpPlusGrowth .. ".")
+               end
+
+               -- Level = Luck - 40 (an average character starts with 41 Luck e.g. level 1)
+               player.data.stats.level = xpPlusGrowth
+               savePlayer(pid)
+            else
+
+               dbg("Player \"" .. player.accountName .. "\" has regressed to level 1.")
+               player.data.stats.level = 1
+               savePlayer(pid)
+            end
+         end
+
          -- Adjust XP based on growth speed
          xpPlusGrowth = attrXP * getGrowthRate()
          attrXP = xpPlusGrowth / 27
