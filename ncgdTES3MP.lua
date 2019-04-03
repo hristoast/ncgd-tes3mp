@@ -203,7 +203,7 @@ local function getRealSkillValue(pid, skill)
 end
 
 
-local function getRealAttributeValue(pid, attribute, reduce)
+local function getRealAttributeValue(pid, attribute)
    --[[
       Takes an attribute name and returns the value less any fortifications.
    ]]--
