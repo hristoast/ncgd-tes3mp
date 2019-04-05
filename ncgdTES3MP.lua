@@ -225,7 +225,7 @@ local function getRealAttributeValue(pid, attribute)
    -- Find the base attribute value, less any fortification
    local baseValue = currentAttribute - fortification
 
-   local newValue = baseValue
+   local newValue
 
    -- Reduce attribute to account for gain from skills
    newValue = baseValue / 2
@@ -470,7 +470,7 @@ local function getGrowthRate()
 end
 
 
-local function calculateAttrXP(pid, skillTable)
+local function calculateAttrXP(pid, attribute, skillTable)
    --[[
       Calculate an attibute's "XP" based on the values of given
       skills listed in 'skillTable' and return this value.
@@ -480,15 +480,151 @@ local function calculateAttrXP(pid, skillTable)
    local attrXP = 0
    local xpPlusGrowth = 0
 
-   for _, skill in pairs(skillTable) do
+   local player = Players[pid]
+
+   local baseAttr = getCustomVar(pid, "base" .. attribute)
+   local realAttr = getRealAttributeValue(pid, attribute)
+   local startAttr = getCustomVar(pid, "start" .. attribute)
+
+   if baseAttr ~= realAttr then
+      -- At this point, NCGD prompts the player with a message stating their
+      -- attribute is off.  They can opt to revert it or keep the new value.
+      -- In the context of TES3MP, it's better to "fix" the problem transparently.
+      -- TODO: Maybe pop up a message
+      realAttr = baseAttr
+      player.data.attributes[attribute] = realAttr
+      savePlayer(pid)
+   end
+
+   for skill, multiplier in pairs(skillTable) do
       local skillBase = getCustomVar(pid, "base" .. skill)
 
+      -- set temp2 to temp2 + baseHandToHand
       xpPlusGrowth = xpPlusGrowth + skillBase
+      -- set temp2 to temp2 * temp2
       xpPlusGrowth = xpPlusGrowth * xpPlusGrowth
+      if multiplier ~= nil then
+         -- set temp2 to temp2 * 4
+         xpPlusGrowth = xpPlusGrowth * multiplier
+      end
+      -- set temp to temp + temp2
       attrXP = attrXP + xpPlusGrowth
 
-      -- Reset this for the next skill
-      xpPlusGrowth = 0
+      -- ; Adjust XP based on growth speed
+      if attribute == Luck then
+         -- set temp2 to temp * 2				; Deviates from Luck derivation to get level
+         xpPlusGrowth = attrXP * 2
+         xpPlusGrowth = xpPlusGrowth / 27
+         xpPlusGrowth = math.floor(math.sqrt(xpPlusGrowth))
+
+         if xpPlusGrowth > 25 then
+
+         end
+
+        -- line 4826
+		-- if (temp2 > 25)
+		-- 	set temp2 to temp2 - 25
+		-- 	if (temp2 > player->getLevel)
+		-- 		MessageBox "You have reached Level %.0g.", temp2
+		-- 	elseif (temp2 < player->getLevel)
+		-- 		MessageBox "You have regressed to Level %.0g.", temp2
+		-- 	endif
+		-- 	player->setLevel temp2 			; Level = Luck - 40 (an average character starts with 41 Luck e.g. level 1)
+		-- else
+		-- 	if (player->getLevel > 1)
+		-- 		MessageBox "You have regressed to Level 1."
+		-- 	endif
+		-- 	player->setLevel 1
+		-- endif
+
+      else
+         -- set temp2 to temp * attributeMult
+         xpPlusGrowth = attrXP * getGrowthRate()
+      end
+      -- set temp to temp2 / 27
+      attrXP = xpPlusGrowth / 27
+
+      -- ; Converts XP into attributes
+      -- set temp2 to getSquareRoot temp
+      xpPlusGrowth = math.floor(math.sqrt(attrXP))
+      -- set temp to temp2 + startSTR	; Sets base Strength to new value
+      attrXP = xpPlusGrowth + startAttr  -- Sets base attr to new value
+
+      local attrGain = attrXP > baseAttr
+      local exceedsMax = baseAttr >= config.maxAttributeValue
+
+      if attrGain and exceedsMax then
+         -- config.maxAttributeValue reached
+         tes3mp.MessageBox(pid, -1, "You have reached the server attribute cap for " .. attribute .. "!")
+         return nil
+      end
+
+      -- if (temp > baseSTR)
+      -- 	MessageBox "Your Strength has increased to %.0g.", temp
+      -- elseif (temp < baseSTR)
+      -- 	MessageBox "Your Strength has decayed to %.0g.", temp
+      -- endif
+      if attrGain and not exceedsMax then
+            dbg("Player \"" .. player.accountName .. "\" has increased their " ..
+                   attribute .. " to " .. tostring(attrXP) .. " from " .. baseAttr .. ".")
+            tes3mp.MessageBox(pid, -1, "Your " .. attribute .. " has increased to " ..
+                                 tostring(attrXP) .. ".")
+
+         elseif attrXP < baseAttr then
+            dbg("Player \"" .. player.accountName .. "\" has decayed their " ..
+                   attribute .. " to " .. tostring(attrXP) .. " from " .. baseAttr .. ".")
+            tes3mp.MessageBox(pid, -1, "Your " .. attribute .. " has decayed to " ..
+                                 tostring(attrXP) .. ".")
+      end
+
+      -- set baseSTR to temp
+      baseAttr = attrXP
+      setCustomVar(pid, "base" .. attribute, baseAttr)
+      -- player->setStrength baseSTR		; Sets player's Strenth to new base value
+      player.data.attributes[attribute] = baseAttr
+      savePlayer(pid)
+
+      local decayRate = getDecayRate()
+
+      if decayRate ~= NO_DECAY then
+         if attribute == Intelligence or attribute == Luck then
+            local baseInt
+            local decayMemory
+
+            local fourteen_days = 336  -- 14 days = 336 hours
+            local seven_days = 168  -- 7 days = 168 hours
+            local three_days = 72  -- 3 days = 72 hours
+            local one_day = 24 -- 1 day = 24 hours
+
+            local playerLevel = player.data.stats.level
+
+            if attribute == Intelligence then
+               baseInt = baseAttr
+            else
+               baseInt = getCustomVar(pid, "base" .. Intelligence)
+            end
+
+            decayMemory = playerLevel * playerLevel
+            decayMemory = (baseInt * baseInt) / decayMemory
+
+            if decayRate == SLOW_DECAY then
+               decayMemory = decayMemory * fourteen_days
+               decayMemory = decayMemory + three_days
+            elseif decayRate == STANDARD_DECAY then
+               decayMemory = decayMemory * seven_days
+               decayMemory = decayMemory + one_day
+            elseif decayRate == FAST_DECAY then
+               decayMemory = decayMemory * three_days
+               decayMemory = decayMemory + 12
+            end
+         end
+
+         setCustomVar(pid, "decayMemory", decayMemory)
+      end
+
+      -- set recalcLUK to 1	; Any change in attributes means Luck needs to be recalculated
+      -- set recalcSTR to 0	; Done checking Strength
+      -- TODO: recalculate luck
    end
 
    return attrXP
@@ -506,133 +642,112 @@ local function recalcAttributes(pid, toRecalc)
 
       The attributes to be recalculated are provided in the 'toRecalc' table.
    ]]--
-   local player = Players[pid]
 
    for _, attribute in pairs(toRecalc) do
-      local baseAttr = getCustomVar(pid, "base" .. attribute)
-      local realAttr = getRealAttributeValue(pid, attribute)
-      local startAttr = getCustomVar(pid, "start" .. attribute)
-
-      if baseAttr ~= realAttr then
-         -- At this point, NCGD prompts the player with a message stating their
-         -- attribute is off.  They can opt to revert it or keep the new value.
-         -- In the context of TES3MP, it's better to "fix" the problem transparently.
-         -- TODO: Maybe pop up a message
-         realAttr = baseAttr
-         player.data.attributes[attribute] = realAttr
-         savePlayer(pid)
-      end
-
-      local attrXP
-      local xpPlusGrowth
 
       if attribute == Strength then
-         attrXP = calculateAttrXP(pid, { Longblade, Bluntweapon, Axe, Armorer, Heavyarmor,
-                                         Spear, Block, Acrobatics, Marksman, Handtohand })
+         calculateAttrXP(pid, attribute,
+                         { Longblade = 2,
+                           Bluntweapon = 4,
+                           Axe = 4,
+                           Armorer = nil,
+                           Heavyarmor = nil,
+                           Spear = 4,
+                           Block = 2,
+                           Acrobatics = nil,
+                           Marksman = 4,
+                           Handtohand = 4 })
 
       elseif attribute == Intelligence then
-         attrXP = calculateAttrXP(pid, { Alchemy, Enchant, Conjuration, Alteration, Destruction,
-                                         Mysticism, Illusion, Security, Mercantile, Speechcraft })
+         calculateAttrXP(pid, attribute,
+                         { Alchemy = 4,
+                           Enchant = 4,
+                           Conjuration = 4,
+                           Alteration = 2,
+                           Destruction = 2,
+                           Mysticism = 4,
+                           Illusion = 2,
+                           Security = 2,
+                           Mercantile = 2,
+                           Speechcraft = 2 })
 
       elseif attribute == Willpower then
-         attrXP = calculateAttrXP(pid, { Bluntweapon, Axe, Mediumarmor, Athletics, Enchant,
-                                         Conjuration, Alteration, Destruction, Mysticism,
-                                         Restoration, Unarmored, Mercantile, Speechcraft })
+         calculateAttrXP(pid, attribute,
+                         { Bluntweapon = 2,
+                           Axe = nil,
+                           Mediumarmor = nil,
+                           Athletics = nil,
+                           Enchant = 2,
+                           Conjuration = nil,
+                           Alteration = 4,
+                           Destruction = 4,
+                           Mysticism = 2,
+                           Restoration = 4,
+                           Unarmored = 2,
+                           Mercantile = nil,
+                           Speechcraft = 2 })
 
       elseif attribute == Agility then
-         attrXP = calculateAttrXP(pid, { Longblade, Axe, Block, Illusion, Acrobatics, Security,
-                                         Sneak, Lightarmor, Marksman, Shortblade, Handtohand,
-                                         Mercantile, Speechcraft })
+         calculateAttrXP(pid, attribute,
+                         { Longblade = 4,
+                           Axe = 2,
+                           Block = nil,
+                           Illusion = nil,
+                           Acrobatics = 2,
+                           Security = 4,
+                           Sneak = 4,
+                           Lightarmor = nil,
+                           Marksman = 2,
+                           Shortblade = 4,
+                           Handtohand = 2 })
 
       elseif attribute == Speed then
-         attrXP = calculateAttrXP(pid, { Longblade, Mediumarmor, Heavyarmor, Spear, Athletics,
-                                         Alteration, Unarmored, Acrobatics, Sneak, Lightarmor,
-                                         Marksman, Shortblade })
+         calculateAttrXP(pid, attribute,
+                         { Longblade = nil,
+                           Mediumarmor = 2,
+                           Heavyarmor = 2,
+                           Spear = nil,
+                           Athletics = 4,
+                           Alteration = nil,
+                           Unarmored = 4,
+                           Acrobatics = 4,
+                           Sneak = nil,
+                           Lightarmor = 4,
+                           Marksman = nil,
+                           Shortblade = 2 })
 
       elseif attribute == Endurance then
-         attrXP = calculateAttrXP(pid, { Bluntweapon, Armorer, Heavyarmor, Spear, Athletics,
-                                         Alteration, Unarmored, Acrobatics, Sneak, Lightarmor,
-                                         Marksman, Shortblade })
+         calculateAttrXP(pid, attribute,
+                         { Bluntweapon = nil,
+                           Armorer = 4,
+                           Mediumarmor = 4,
+                           Heavyarmor = 4,
+                           Spear = 2,
+                           Block = 4,
+                           Athletics = 2,
+                           Alchemy = nil,
+                           Restoration = nil,
+                           Unarmored = nil,
+                           Lightarmor = 2,
+                           Handtohand = nil })
 
       elseif attribute == Personality then
-         attrXP = calculateAttrXP(pid, { Armorer, Alchemy, Enchant, Conjuration, Destruction,
-                                         Mysticism, Restoration, Illusion, Security, Sneak,
-                                         Shortblade, Mercantile, Speechcraft })
+         calculateAttrXP(pid, attribute,
+                         { Armorer = 2,
+                           Alchemy = 2,
+                           Enchant = nil,
+                           Conjuration = 2,
+                           Destruction = nil,
+                           Mysticism = nil,
+                           Restoration = 2,
+                           Illusion = 4,
+                           Security = nil,
+                           Sneak = 2,
+                           Shortblade = nil,
+                           Mercantile = 4,
+                           Speechcraft = 4 })
       end
-
-      if attrXP ~= nil then
-         if attribute == Luck then
-            attrXP = calculateAttrXP(pid, Skills)
-
-            local playerLevel = player.data.stats.level
-
-            xpPlusGrowth = attrXP * 2
-            xpPlusGrowth = xpPlusGrowth / 27
-            xpPlusGrowth = math.sqrt(xpPlusGrowth)
-
-            if xpPlusGrowth > 25 then
-               if xpPlusGrowth > playerLevel then
-                  dbg("Player \"" .. player.accountName .. "\" has reached level " ..
-                         xpPlusGrowth .. " from level " .. playerLevel .. ".")
-                  tes3mp.MessageBox(pid, -1, "You have reached level " .. xpPlusGrowth .. ".")
-               elseif xpPlusGrowth < playerLevel then
-                  dbg("Player \"" .. player.accountName .. "\" has regressed to level " ..
-                         xpPlusGrowth .. " from level " .. playerLevel .. ".")
-                  tes3mp.MessageBox(pid, -1, "You have regressed to level " .. xpPlusGrowth .. ".")
-               end
-
-               -- Level = Luck - 40 (an average character starts with 41 Luck e.g. level 1)
-               player.data.stats.level = xpPlusGrowth
-               savePlayer(pid)
-            else
-
-               dbg("Player \"" .. player.accountName .. "\" has regressed to level 1.")
-               player.data.stats.level = 1
-               savePlayer(pid)
-            end
-         end
-
-         -- Adjust XP based on growth speed
-         xpPlusGrowth = attrXP * getGrowthRate()
-         attrXP = xpPlusGrowth / 27
-
-         -- Convert XP into attributes
-         xpPlusGrowth = math.floor(math.sqrt(attrXP))
-         attrXP = xpPlusGrowth + startAttr  -- Sets base attr to new value
-
-         if attrXP > baseAttr and baseAttr >= config.maxAttributeValue then
-            -- config.maxAttributeValue reached
-            tes3mp.MessageBox(pid, -1, "You have reached the server attribute cap for " .. attribute .. "!")
-            return
-         end
-
-         local attrGain = attrXP > baseAttr
-         local exceedsMax = baseAttr >= config.maxAttributeValue
-
-         if attrGain and not exceedsMax then
-            dbg("Player \"" .. player.accountName .. "\" has increased their " ..
-                   attribute .. " to " .. tostring(attrXP) .. " from " .. baseAttr .. ".")
-            tes3mp.MessageBox(pid, -1, "Your " .. attribute .. " has increased to " ..
-                                 tostring(attrXP) .. ".")
-
-         elseif attrXP < baseAttr then
-            dbg("Player \"" .. player.accountName .. "\" has decayed their " ..
-                   attribute .. " to " .. tostring(attrXP) .. " from " .. baseAttr .. ".")
-            tes3mp.MessageBox(pid, -1, "Your " .. attribute .. " has decayed to " ..
-                                 tostring(attrXP) .. ".")
-         end
-
-         -- Update internal NCGD data and save
-         baseAttr = attrXP
-         setCustomVar(pid, "base" .. attribute, baseAttr)
-
-         -- Update the player's data and save
-         player.data.attributes[attribute] = baseAttr
-         savePlayer(pid)
-
-         -- TODO: ensure luck gets recalculated correctly
-         recalcAttributes(pid, { Luck })
-      end
+      calculateAttrXP(pid, Luck, { Skills })
    end
 end
 
