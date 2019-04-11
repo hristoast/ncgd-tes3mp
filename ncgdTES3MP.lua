@@ -475,7 +475,7 @@ local function calculateAttrXP(pid, attribute, skillTable)
       Calculate an attibute's "XP" based on the values of given
       skills listed in 'skillTable' and return this value.
    ]]--
-   dbg("Called \"calculateAttrXP\"")
+   dbg("Called \"calculateAttrXP\" for attribute " .. attribute .. ".")
 
    local attrXP = 0
    local xpPlusGrowth = 0
@@ -756,7 +756,34 @@ local function recalcAttributes(pid, toRecalc)
                            Mercantile = 4,
                            Speechcraft = 4 })
       end
-      calculateAttrXP(pid, Luck, { Skills })
+      calculateAttrXP(pid, Luck,
+                      { Acrobatics = nil,
+                        Alchemy = nil,
+                        Alteration = nil,
+                        Armorer = nil,
+                        Athletics = nil,
+                        Axe = nil,
+                        Block = nil,
+                        Bluntweapon = nil,
+                        Conjuration = nil,
+                        Destruction = nil,
+                        Enchant = nil,
+                        Handtohand = nil,
+                        Heavyarmor = nil,
+                        Illusion = nil,
+                        Lightarmor = nil,
+                        Longblade = nil,
+                        Marksman = nil,
+                        Mediumarmor = nil,
+                        Mercantile = nil,
+                        Mysticism = nil,
+                        Restoration = nil,
+                        Security = nil,
+                        Shortblade = nil,
+                        Sneak = nil,
+                        Spear = nil,
+                        Speechcraft = nil,
+                        Unarmored = nil })
    end
 end
 
