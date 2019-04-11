@@ -517,8 +517,15 @@ local function calculateAttrXP(pid, attribute, skillTable)
          xpPlusGrowth = xpPlusGrowth / 27
          xpPlusGrowth = math.floor(math.sqrt(xpPlusGrowth))
 
+         -- if (temp2 > 25)
          if xpPlusGrowth > 25 then
+            -- set temp2 to temp2 - 25
+            xpPlusGrowth = xpPlusGrowth - 25
 
+            -- if (temp2 > player->getLevel)
+            if xpPlusGrowth > player.stats.level then
+
+            end
          end
 
         -- line 4826
@@ -585,11 +592,11 @@ local function calculateAttrXP(pid, attribute, skillTable)
       savePlayer(pid)
 
       local decayRate = getDecayRate()
+      local decayMemory
 
       if decayRate ~= NO_DECAY then
          if attribute == Intelligence or attribute == Luck then
             local baseInt
-            local decayMemory
 
             local fourteen_days = 336  -- 14 days = 336 hours
             local seven_days = 168  -- 7 days = 168 hours
