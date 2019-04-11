@@ -626,7 +626,9 @@ local function calculateAttrXP(pid, attribute, skillTable)
             end
          end
 
-         setCustomVar(pid, "decayMemory", decayMemory)
+         if decayMemory ~= nil then
+            setCustomVar(pid, "decayMemory", decayMemory)
+         end
       end
 
       -- set recalcLUK to 1	; Any change in attributes means Luck needs to be recalculated
