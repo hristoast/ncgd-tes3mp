@@ -3,7 +3,7 @@ local ncgdTES3MP = {}
 local ncgdConfig = {}
 
 
--- TODO: Use DataManager
+-- TODO: Use DataManager, fallback to these values if it's not installed
 -- deathDecay: true or false
 ncgdConfig.deathDecay = true
 
@@ -22,7 +22,9 @@ ncgdConfig.ForceLoadOnPlayerDeath = true
 ncgdConfig.ForceLoadOnPlayerLevel = true
 ncgdConfig.ForceLoadOnPlayerEndChargen = true
 
+--
 -- END user config for ncgdTES3MP -- Don't edit below here!
+--
 
 local NO_DECAY = 0
 local SLOW_DECAY = 1
@@ -137,7 +139,7 @@ end
 local function getSkillValue(pid, skill)
    --[[ Helper function for retrieving a player's skill value. ]]--
    dbg("Called \"getSkillValue\" for pid \"" .. pid .. "\" and skill \"" .. skill .. "\"")
-   return Players[pid].data.skills[skill]
+   return Players[pid].data.skills[skill].base
 end
 
 
@@ -181,32 +183,8 @@ local function getRealAttributeValue(pid, attribute)
       Takes an attribute name and returns the value less any fortifications.
    ]]--
    dbg("Called \"getRealAttributeValue\" for pid \"" .. pid .. "\" and attribute \"" .. attribute .. "\"")
-   local player = Players[pid]
 
-   -- Record current attribute value
-   local currentAttribute = player.data.attributes[attribute]
-
-   -- NCGD uses 1000 as a very high value for finding fortifications
-   local magicNumber = 1000
-
-   -- Set base attribute to a known value
-   player.data.attributes[attribute] = magicNumber
-
-   -- Get fortification, if any
-   local fortification = player.data.attributes[attribute] - magicNumber
-
-   -- Find the base attribute value, less any fortification
-   local baseValue = currentAttribute - fortification
-
-   local newValue
-
-   -- Reduce attribute to account for gain from skills
-   newValue = baseValue / 2
-
-   -- Put the attribute value back
-   player.data.attributes[attribute] = currentAttribute
-
-   return newValue
+   return Players[pid].data.attributes[attribute].base
 end
 
 
@@ -306,14 +284,14 @@ local function getAttrsToRecalc(skill)
    local toRecalc = {}
 
    if skill == Block then
+      table.insert(toRecalc, Strength)
       table.insert(toRecalc, Agility)
       table.insert(toRecalc, Endurance)
-      table.insert(toRecalc, Strength)
 
    elseif skill == Armorer then
+      table.insert(toRecalc, Strength)
       table.insert(toRecalc, Endurance)
       table.insert(toRecalc, Personality)
-      table.insert(toRecalc, Strength)
 
    elseif skill == Mediumarmor then
       table.insert(toRecalc, Endurance)
@@ -321,29 +299,29 @@ local function getAttrsToRecalc(skill)
       table.insert(toRecalc, Willpower)
 
    elseif skill == Heavyarmor then
+      table.insert(toRecalc, Strength)
       table.insert(toRecalc, Endurance)
       table.insert(toRecalc, Speed)
-      table.insert(toRecalc, Strength)
 
    elseif skill == Bluntweapon then
-      table.insert(toRecalc, Endurance)
       table.insert(toRecalc, Strength)
+      table.insert(toRecalc, Endurance)
       table.insert(toRecalc, Willpower)
 
    elseif skill == Longblade then
+      table.insert(toRecalc, Strength)
       table.insert(toRecalc, Agility)
       table.insert(toRecalc, Speed)
-      table.insert(toRecalc, Strength)
 
    elseif skill == Axe then
-      table.insert(toRecalc, Agility)
       table.insert(toRecalc, Strength)
+      table.insert(toRecalc, Agility)
       table.insert(toRecalc, Willpower)
 
    elseif skill == Spear then
+      table.insert(toRecalc, Strength)
       table.insert(toRecalc, Endurance)
       table.insert(toRecalc, Speed)
-      table.insert(toRecalc, Strength)
 
    elseif skill == Athletics then
       table.insert(toRecalc, Endurance)
@@ -353,17 +331,17 @@ local function getAttrsToRecalc(skill)
       -- Magical skills
    elseif skill == Enchant then
       table.insert(toRecalc, Intelligence)
-      table.insert(toRecalc, Personality)
       table.insert(toRecalc, Willpower)
+      table.insert(toRecalc, Personality)
 
    elseif skill == Destruction then
       table.insert(toRecalc, Intelligence)
-      table.insert(toRecalc, Personality)
       table.insert(toRecalc, Willpower)
+      table.insert(toRecalc, Personality)
 
    elseif skill == Alteration then
-      table.insert(toRecalc, Intelligence)
       table.insert(toRecalc, Speed)
+      table.insert(toRecalc, Intelligence)
       table.insert(toRecalc, Willpower)
 
    elseif skill == Illusion then
@@ -373,18 +351,18 @@ local function getAttrsToRecalc(skill)
 
    elseif skill == Conjuration then
       table.insert(toRecalc, Intelligence)
-      table.insert(toRecalc, Personality)
       table.insert(toRecalc, Willpower)
+      table.insert(toRecalc, Personality)
 
    elseif skill == Mysticism then
       table.insert(toRecalc, Intelligence)
-      table.insert(toRecalc, Personality)
       table.insert(toRecalc, Willpower)
+      table.insert(toRecalc, Personality)
 
    elseif skill == Restoration then
-      table.insert(toRecalc, Intelligence)
-      table.insert(toRecalc, Personality)
+      table.insert(toRecalc, Endurance)
       table.insert(toRecalc, Willpower)
+      table.insert(toRecalc, Personality)
 
    elseif skill == Alchemy then
       table.insert(toRecalc, Endurance)
@@ -404,13 +382,13 @@ local function getAttrsToRecalc(skill)
 
    elseif skill == Sneak then
       table.insert(toRecalc, Agility)
-      table.insert(toRecalc, Personality)
       table.insert(toRecalc, Speed)
+      table.insert(toRecalc, Personality)
 
    elseif skill == Acrobatics then
+      table.insert(toRecalc, Strength)
       table.insert(toRecalc, Agility)
       table.insert(toRecalc, Speed)
-      table.insert(toRecalc, Strength)
 
    elseif skill == Lightarmor then
       table.insert(toRecalc, Agility)
@@ -419,28 +397,28 @@ local function getAttrsToRecalc(skill)
 
    elseif skill == Shortblade then
       table.insert(toRecalc, Agility)
-      table.insert(toRecalc, Endurance)
       table.insert(toRecalc, Speed)
+      table.insert(toRecalc, Personality)
 
    elseif skill == Marksman then
+      table.insert(toRecalc, Strength)
       table.insert(toRecalc, Agility)
       table.insert(toRecalc, Speed)
-      table.insert(toRecalc, Strength)
 
    elseif skill == Mercantile then
       table.insert(toRecalc, Intelligence)
-      table.insert(toRecalc, Personality)
       table.insert(toRecalc, Willpower)
+      table.insert(toRecalc, Personality)
 
    elseif skill == Speechcraft then
       table.insert(toRecalc, Intelligence)
-      table.insert(toRecalc, Personality)
       table.insert(toRecalc, Willpower)
+      table.insert(toRecalc, Personality)
 
    elseif skill == Handtohand then
+      table.insert(toRecalc, Strength)
       table.insert(toRecalc, Agility)
       table.insert(toRecalc, Endurance)
-      table.insert(toRecalc, Strength)
    end
 
    return toRecalc
@@ -449,7 +427,7 @@ end
 
 local function getAttrSkills(attribute)
    dbg("Called \"getAttrSkills\" on attribute \"" .. attribute .. "\".")
-   --[[ TODO: verify these numbers ]]--
+
    if attribute == Strength then
       return { Longblade = 2,
                Bluntweapon = 4,
@@ -472,7 +450,7 @@ local function getAttrSkills(attribute)
                Illusion = 2,
                Security = 2,
                Mercantile = 2,
-               Speechcraft = 2 }
+               Speechcraft = nil }
 
    elseif attribute == Willpower then
       return { Bluntweapon = 2,
@@ -586,9 +564,8 @@ local function calcSkill(pid, skill)
       Calculate a skill's value and return the attributes that need to be recalculated.
    ]]--
 
-   -- local counter = 0
-   local temp = 0
-   local temp2 = 0
+   local temp
+   local temp2
 
    local player = Players[pid]
 
@@ -597,16 +574,13 @@ local function calcSkill(pid, skill)
    local maxSkill = getCustomVar(pid, "max" .. skill)
    local masterySkill = getCustomVar(pid, "mastery" .. skill)
    local progressSkill = getCustomVar(pid, "progress" .. skill)
-   local skillSkill = getCustomVar(pid, "skill" .. skill)
+   local skillValue = getCustomVar(pid, "skill" .. skill)
 
-   if skillSkill ~= player.data.skills[skill] then
-      skillSkill = player.data.skills[skill]
-      player.data.skills[skill] = 1000
-      temp2 = player.data.skills[skill] - 1000
-      skillSkill = skillSkill - temp2
+   if skillValue ~= getSkillValue(pid, skill) then
+      skillValue = getSkillValue(pid, skill)
 
-      if skillSkill > baseSkill then
-         temp = skillSkill
+      if skillValue > baseSkill then
+         temp = skillValue
          temp2 = 25 * masterySkill
          temp = temp + temp2
 
@@ -615,7 +589,7 @@ local function calcSkill(pid, skill)
                progressSkill = progressSkill + 1
             else
                temp = temp + 1
-               skillSkill = skillSkill + 1
+               skillValue = skillValue + 1
                progressSkill = 0
                tes3mp.MessageBox(pid, -1, "Your Skill skill increased to " .. temp .. ".")
                decaySkill = decaySkill / 2
@@ -625,31 +599,31 @@ local function calcSkill(pid, skill)
          end
 
          if progressSkill < masterySkill then
-            skillSkill = skillSkill -1
-            player.data.skills[skill] = skillSkill
+            skillValue = skillValue -1
+            player.data.skills[skill].base = skillValue
             progressSkill = progressSkill + 1
-            skillSkill = player.data.skills[skill]  -- WTF
+            skillValue = getSkillValue(pid, skill)  -- WTF
             tes3mp.MessageBox(pid, -1, "You need more training before your skill will improve.  (" ..
                                  tostring(progressSkill) .. " out of " .. tostring(tonumber(masterySkill + 1)) .. ")")
-         elseif skillSkill < 100 then
+         elseif skillValue < 100 then
             if masterySkill > 0 then
                tes3mp.MessageBox(pid, -1, "Your Skill skill increased to " .. temp .. ".")
             end
-            baseSkill = skillSkill
-            player.data.skills[skill] = skillSkill
+            baseSkill = skillValue
+            player.data.skills[skill].base = skillValue
             progressSkill = 0
-            skillSkill = player.data.skills[skill]  -- WTF
+            skillValue = getSkillValue(pid, skill)  -- WTF
             decaySkill = decaySkill / 2
          else
             if masterySkill > 0 then
                tes3mp.MessageBox(pid, -1, "Your Skill skill increased to " .. temp .. ".")
             end
             masterySkill = masterySkill + 1
-            -- baseSkill = skillSkill - 25  -- Don't actually do this since spells aren't needed in TES3MP
-            baseSkill = skillSkill  -- Added because of the above
-            player.data.skills[skill] = baseSkill
+            -- baseSkill = skillValue - 25  -- Don't actually do this since spells aren't needed in TES3MP
+            baseSkill = skillValue  -- Added because of the above
+            player.data.skills[skill].base = baseSkill
             progressSkill = 0
-            skillSkill = player.data.skills[skill]
+            skillValue = getSkillValue(pid, skill)
             decaySkill = decaySkill / 2
 
             temp2 = masterySkill
@@ -673,11 +647,11 @@ local function calcSkill(pid, skill)
             end
          end
       elseif masterySkill > 0 then
-         if skillSkill < 75 then
+         if skillValue < 75 then
             masterySkill = masterySkill - 1
-            baseSkill = skillSkill + 25
-            player.data.skills[skill] = baseSkill
-            skillSkill = player.data.skills[skill]
+            baseSkill = skillValue + 25
+            player.data.skills[skill].base = baseSkill
+            skillValue = getSkillValue(pid, skill)
 
             temp2 = masterySkill
 
@@ -699,14 +673,14 @@ local function calcSkill(pid, skill)
                dbg("NCGD adds skill25 spell here...")
             end
          else
-            baseSkill = skillSkill
-            player.data.skills[skill] = skillSkill
-            skillSkill = player.data.skills[skill]  -- WTF
+            baseSkill = skillValue
+            player.data.skills[skill].base = skillValue
+            skillValue = getSkillValue(pid, skill)  -- WTF
          end
       else
-         baseSkill = skillSkill
-         player.data.skills[skill] = skillSkill
-         skillSkill = player.data.skills[skill]  -- WTF
+         baseSkill = skillValue
+         player.data.skills[skill].base = skillValue
+         skillValue = getSkillValue(pid, skill)  -- WTF
       end
 
    end
@@ -715,7 +689,7 @@ local function calcSkill(pid, skill)
    setCustomVar(pid, "decay" ..  skill, decaySkill)
    setCustomVar(pid, "max" ..  skill, maxSkill)
    setCustomVar(pid, "progress" ..  skill, progressSkill)
-   setCustomVar(pid, "skill" ..  skill, skillSkill)
+   setCustomVar(pid, "skill" ..  skill, skillValue)
    savePlayer(pid)
 
    return getAttrsToRecalc(skill)
@@ -756,6 +730,7 @@ local function recalcAttrs(pid, attrsTable)
          temp = temp + temp2
       end
 
+      -- TODO: verify luck calculations
       if attribute == Luck then
          temp2 = temp * 2
          temp2 = temp2 / 27
@@ -764,6 +739,7 @@ local function recalcAttrs(pid, attrsTable)
          if temp2 > 25 then
             temp2 = temp2 - 25
             if temp2 > player.stats.level then
+               -- TODO: this doesn't seem to ever happen
                tes3mp.MessageBox(pid, -1, "You have reached Level " .. temp2 .. ".")
             elseif temp2 < player.stats.level then
                tes3mp.MessageBox(pid, -1, "You have regressed to Level " .. temp2 .. ".")
