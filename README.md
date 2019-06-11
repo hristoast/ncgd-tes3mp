@@ -1,8 +1,15 @@
 # NCGD-TES3MP
 
-Requires [DataManager](https://github.com/tes3mp-scripts/DataManager)!
+A server-side lua implementation of [Natural Character Growth And Decay - MW](https://www.nexusmods.com/morrowind/mods/44967) by Greywander, for TES3MP.
 
-A server-side lua implementation of [Natural Character Growth And Decay - MW](https://www.nexusmods.com/morrowind/mods/44967) for TES3MP.  Highly configurable, no client-side plugin is required.
+Features:
+
+* Requires [DataManager](https://github.com/tes3mp-scripts/DataManager)!
+* Your attributes grow automatically as your skills increase.
+* Leveling happens automatically as attributes increase.
+* Attribute modifier numbers and skill attributes (which skills increase which attributes) are fully configurable.
+* Your skills will also decay over time. (Optional)
+* On death, the decay rate is accelerated. (Optional, with optional effect stacking)
 
 ## Installation
 
@@ -18,7 +25,7 @@ A server-side lua implementation of [Natural Character Growth And Decay - MW](ht
 
 * Attribute modifiers
 
-Each attribute modifier is fully configurable.  Look for the `modifiers` key in the config file and edit to suit your needs.  The defaults 100% mirror the original NCGD.
+Each attribute modifier is fully configurable.  Look for the `modifiers` key in the config file and edit to suit your needs.  Default: what's in mwscript NCGD
 
 * Skill Attributes
 
