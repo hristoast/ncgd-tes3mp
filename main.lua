@@ -67,7 +67,146 @@ local Skills = {
 local NCGD = "NCGD"
 
 ncgdTES3MP.defaultConfig = {
-   -- TODO: Configurable attribute skills (e.g. which skills affect which attributes)
+   skillAttributes = {
+      -- Combat skills
+      Block = {
+         Strength,
+         Agility,
+         Endurance
+      },
+      Armorer = {
+         Strength,
+         Endurance,
+         Personality
+      },
+      Mediumarmor = {
+         Endurance,
+         Speed,
+         Willpower
+      },
+      Heavyarmor = {
+         Strength,
+         Endurance,
+         Speed
+      },
+      Bluntweapon = {
+         Strength,
+         Endurance,
+         Willpower
+      },
+      Longblade = {
+         Strength,
+         Agility,
+         Speed
+      },
+      Axe = {
+         Strength,
+         Agility,
+         Willpower
+      },
+      Spear = {
+         Strength,
+         Endurance,
+         Speed
+      },
+      Athletics = {
+         Endurance,
+         Speed,
+         Willpower
+      },
+      -- Magical Skills
+      Enchant = {
+         Intelligence,
+         Willpower,
+         Personality
+      },
+      Destruction = {
+         Intelligence,
+         Willpower,
+         Personality
+      },
+      Alteration = {
+         Speed,
+         Intelligence,
+         Willpower
+      },
+      Illusion = {
+         Agility,
+         Intelligence,
+         Personality
+      },
+      Conjuration = {
+         Intelligence,
+         Willpower,
+         Personality
+      },
+      Mysticism = {
+         Intelligence,
+         Willpower,
+         Personality
+      },
+      Restoration = {
+         Endurance,
+         Willpower,
+         Personality
+      },
+      Alchemy = {
+         Endurance,
+         Intelligence,
+         Personality
+      },
+      Unarmored = {
+         Endurance,
+         Speed,
+         Willpower
+      },
+      -- Thief skills
+      Security = {
+         Agility,
+         Intelligence,
+         Personality
+      },
+      Sneak = {
+         Agility,
+         Speed,
+         Personality
+      },
+      Acrobatics = {
+         Strength,
+         Agility,
+         Speed
+      },
+      Lightarmor = {
+         Agility,
+         Endurance,
+         Speed
+      },
+      Shortblade = {
+         Agility,
+         Speed,
+         Personality
+      },
+      Marksman = {
+         Strength,
+         Agility,
+         Speed
+      },
+      Mercantile = {
+         Intelligence,
+         Willpower,
+         Personality
+      },
+      Speechcraft = {
+         Intelligence,
+         Willpower,
+         Personality
+      },
+      Handtohand = {
+         Strength,
+         Agility,
+         Endurance
+      }
+   },
    deathDecay = {
       durationHrs = 1,
       enabled = true,
@@ -80,6 +219,7 @@ ncgdTES3MP.defaultConfig = {
    forceLoadOnPlayerDeath = false,
    forceLoadOnPlayerDisconnect = false,
    forceLoadOnPlayerEndCharGen = false,
+   forceLoadOnPlayerLevel = false,
    growthRate = slow,
    modifiers = {
       -- These default values come from the original NCGD.
@@ -257,6 +397,7 @@ local function setAttribute(pid, attribute, value, save)
    dbg("Called \"setAttribute\" for pid \"" .. pid .. "\" and attribute \""
           .. attribute .. "\" and value \"" .. value .. "\"")
    Players[pid].data.attributes[attribute].base = value
+   Players[pid].data.attributes[attribute].skillIncrease = 0
    if save ~= nil then
       Players[pid]:SaveAttributes()
    end
@@ -278,9 +419,10 @@ local function setPlayerLevel(pid, value)
       -- TODO: if a player starts out with a level up it doesn't get applied here...
       Players[pid].stats = { ["level"] = 1 }
    end
+   Players[pid]:LoadLevel()
    Players[pid].stats.level = value
    Players[pid].stats.levelProgress = 0
-   Players[pid]:LoadLevel()
+   Players[pid]:SaveLevel()
 end
 
 local function getSkill(pid, skill, base)
@@ -453,147 +595,7 @@ end
 
 local function getAttrsToRecalc(skill)
    dbg("Called \"getAttrsToRecalc\"")
-   local toRecalc = {}
-   -- TODO: DRY this up by making it configurable
-   if skill == Block then
-      table.insert(toRecalc, Strength)
-      table.insert(toRecalc, Agility)
-      table.insert(toRecalc, Endurance)
-
-   elseif skill == Armorer then
-      table.insert(toRecalc, Strength)
-      table.insert(toRecalc, Endurance)
-      table.insert(toRecalc, Personality)
-
-   elseif skill == Mediumarmor then
-      table.insert(toRecalc, Endurance)
-      table.insert(toRecalc, Speed)
-      table.insert(toRecalc, Willpower)
-
-   elseif skill == Heavyarmor then
-      table.insert(toRecalc, Strength)
-      table.insert(toRecalc, Endurance)
-      table.insert(toRecalc, Speed)
-
-   elseif skill == Bluntweapon then
-      table.insert(toRecalc, Strength)
-      table.insert(toRecalc, Endurance)
-      table.insert(toRecalc, Willpower)
-
-   elseif skill == Longblade then
-      table.insert(toRecalc, Strength)
-      table.insert(toRecalc, Agility)
-      table.insert(toRecalc, Speed)
-
-   elseif skill == Axe then
-      table.insert(toRecalc, Strength)
-      table.insert(toRecalc, Agility)
-      table.insert(toRecalc, Willpower)
-
-   elseif skill == Spear then
-      table.insert(toRecalc, Strength)
-      table.insert(toRecalc, Endurance)
-      table.insert(toRecalc, Speed)
-
-   elseif skill == Athletics then
-      table.insert(toRecalc, Endurance)
-      table.insert(toRecalc, Speed)
-      table.insert(toRecalc, Willpower)
-
-      -- Magical skills
-   elseif skill == Enchant then
-      table.insert(toRecalc, Intelligence)
-      table.insert(toRecalc, Willpower)
-      table.insert(toRecalc, Personality)
-
-   elseif skill == Destruction then
-      table.insert(toRecalc, Intelligence)
-      table.insert(toRecalc, Willpower)
-      table.insert(toRecalc, Personality)
-
-   elseif skill == Alteration then
-      table.insert(toRecalc, Speed)
-      table.insert(toRecalc, Intelligence)
-      table.insert(toRecalc, Willpower)
-
-   elseif skill == Illusion then
-      table.insert(toRecalc, Agility)
-      table.insert(toRecalc, Intelligence)
-      table.insert(toRecalc, Personality)
-
-   elseif skill == Conjuration then
-      table.insert(toRecalc, Intelligence)
-      table.insert(toRecalc, Willpower)
-      table.insert(toRecalc, Personality)
-
-   elseif skill == Mysticism then
-      table.insert(toRecalc, Intelligence)
-      table.insert(toRecalc, Willpower)
-      table.insert(toRecalc, Personality)
-
-   elseif skill == Restoration then
-      table.insert(toRecalc, Endurance)
-      table.insert(toRecalc, Willpower)
-      table.insert(toRecalc, Personality)
-
-   elseif skill == Alchemy then
-      table.insert(toRecalc, Endurance)
-      table.insert(toRecalc, Intelligence)
-      table.insert(toRecalc, Personality)
-
-   elseif skill == Unarmored then
-      table.insert(toRecalc, Endurance)
-      table.insert(toRecalc, Speed)
-      table.insert(toRecalc, Willpower)
-
-      -- Thief skills
-   elseif skill == Security then
-      table.insert(toRecalc, Agility)
-      table.insert(toRecalc, Intelligence)
-      table.insert(toRecalc, Personality)
-
-   elseif skill == Sneak then
-      table.insert(toRecalc, Agility)
-      table.insert(toRecalc, Speed)
-      table.insert(toRecalc, Personality)
-
-   elseif skill == Acrobatics then
-      table.insert(toRecalc, Strength)
-      table.insert(toRecalc, Agility)
-      table.insert(toRecalc, Speed)
-
-   elseif skill == Lightarmor then
-      table.insert(toRecalc, Agility)
-      table.insert(toRecalc, Endurance)
-      table.insert(toRecalc, Speed)
-
-   elseif skill == Shortblade then
-      table.insert(toRecalc, Agility)
-      table.insert(toRecalc, Speed)
-      table.insert(toRecalc, Personality)
-
-   elseif skill == Marksman then
-      table.insert(toRecalc, Strength)
-      table.insert(toRecalc, Agility)
-      table.insert(toRecalc, Speed)
-
-   elseif skill == Mercantile then
-      table.insert(toRecalc, Intelligence)
-      table.insert(toRecalc, Willpower)
-      table.insert(toRecalc, Personality)
-
-   elseif skill == Speechcraft then
-      table.insert(toRecalc, Intelligence)
-      table.insert(toRecalc, Willpower)
-      table.insert(toRecalc, Personality)
-
-   elseif skill == Handtohand then
-      table.insert(toRecalc, Strength)
-      table.insert(toRecalc, Agility)
-      table.insert(toRecalc, Endurance)
-   end
-
-   return toRecalc
+   return ncgdTES3MP.config.skillAttributes[skill]
 end
 
 function ncgdTES3MP.OnPlayerAttribute(eventStatus, pid)
@@ -612,9 +614,9 @@ function ncgdTES3MP.OnPlayerAttribute(eventStatus, pid)
          info("Called \"OnPlayerAttribute\" for pid \"" .. pid .. "\"")
          -- TODO: Figure out which skill leveled up and recalculate the appropriate attributes.
 
-         -- Allow custom behavior, block the default
+         -- Allow custom behavior, and the default
          local customHandlers = true
-         local defaultHandler = false
+         local defaultHandler = true
          customEventHooks.makeEventStatus(defaultHandler, customHandlers)
       else
          dbg("Not running \"OnPlayerAttribute\" because CharGen hasn't completed!")
@@ -732,10 +734,29 @@ function ncgdTES3MP.OnPlayerEndCharGen(eventStatus, pid)
    end
 end
 
+function ncgdTES3MP.OnPlayerLevel(eventStatus, pid)
+   if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerLevel then
+      fatal("validCustomHandlers for `OnPlayerLevel` have been set to false!" ..
+               "  ncgdTES3MP requires custom handlers to operate!")
+      fatal("Exiting now to avoid problems.  Please set \"forceLoadOnPlayerLevel\"" ..
+            " to \"true\" if you're sure it's OK.")
+      tes3mp.StopServer()
+   else
+      if ncgdTES3MP.config.forceLoadOnPlayerLevel then
+         warn("\"ncgdTES3MP.OnPlayerLevel\" is being force loaded!!")
+      end
+      info("Called \"OnPlayerLevel\" for pid \"" .. pid .. "\"")
+      -- Block custom behavior, and the default
+      local customHandlers = false
+      local defaultHandler = false
+      customEventHooks.makeEventStatus(defaultHandler, customHandlers)
+   end
+end
+
 
 customEventHooks.registerHandler("OnPlayerAttribute", ncgdTES3MP.OnPlayerAttribute)
 customEventHooks.registerHandler("OnPlayerAuthentified", ncgdTES3MP.OnPlayerAuthentified)
 customEventHooks.registerHandler("OnPlayerDeath", ncgdTES3MP.OnPlayerDeath)
 customEventHooks.registerHandler("OnPlayerDisconnect", ncgdTES3MP.OnPlayerDisconnect)
 customEventHooks.registerHandler("OnPlayerEndCharGen", ncgdTES3MP.OnPlayerEndCharGen)
--- TODO: does OnPlayerLevel need to be blocked?
+customEventHooks.registerHandler("OnPlayerLevel", ncgdTES3MP.OnPlayerLevel)
