@@ -214,12 +214,12 @@ ncgdTES3MP.defaultConfig = {
       stacks = false
    },
    decayRate = fast,
-   forceLoadOnPlayerAttribute = false,
    forceLoadOnPlayerAuthentified = false,
    forceLoadOnPlayerDeath = false,
    forceLoadOnPlayerDisconnect = false,
    forceLoadOnPlayerEndCharGen = false,
    forceLoadOnPlayerLevel = false,
+   forceLoadOnPlayerSkill = false,
    growthRate = slow,
    modifiers = {
       -- These default values come from the original NCGD.
@@ -598,28 +598,47 @@ local function getAttrsToRecalc(skill)
    return ncgdTES3MP.config.skillAttributes[skill]
 end
 
-function ncgdTES3MP.OnPlayerAttribute(eventStatus, pid)
-   if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerAttribute then
-      fatal("validCustomHandlers for `OnPlayerAttribute` have been set to false!" ..
+function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
+   if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerSkill then
+      fatal("validCustomHandlers for `OnPlayerSkill` have been set to false!" ..
                "  ncgdTES3MP requires custom handlers to operate!")
-      fatal("Exiting now to avoid problems.  Please set \"forceLoadOnPlayerAttribute\"" ..
+      fatal("Exiting now to avoid problems.  Please set \"forceLoadOnPlayerSkill\"" ..
             " to \"true\" if you're sure it's OK.")
       tes3mp.StopServer()
    else
-      if ncgdTES3MP.config.forceLoadOnPlayerAttribute then
-         warn("\"ncgdTES3MP.OnPlayerAttribute\" is being force loaded!!")
+      if ncgdTES3MP.config.forceLoadOnPlayerSkill then
+         warn("\"ncgdTES3MP.OnPlayerSkill\" is being force loaded!!")
       end
 
       if ncgdTES3MP.chargenDone then
-         info("Called \"OnPlayerAttribute\" for pid \"" .. pid .. "\"")
-         -- TODO: Figure out which skill leveled up and recalculate the appropriate attributes.
+         info("Called \"OnPlayerSkill\" for pid \"" .. pid .. "\"")
+
+         Players[pid]:LoadSkills()
+         local raisedSkill = nil
+
+         for _, skill in pairs(Skills) do
+            local ncgdVal = getCustomVar(pid, "base" .. skill)
+            local playerVal = getSkill(pid, skill)
+
+            if playerVal > ncgdVal then
+               raisedSkill = skill
+               setCustomVar(pid, "base" .. skill, playerVal)
+               break
+            end
+         end
+
+         if raisedSkill ~= nil then
+            for _, attribute in pairs(getAttrsToRecalc(raisedSkill)) do
+               recalculateAttribute(pid, attribute)
+            end
+         end
 
          -- Allow custom behavior, and the default
          local customHandlers = true
          local defaultHandler = true
          customEventHooks.makeEventStatus(defaultHandler, customHandlers)
       else
-         dbg("Not running \"OnPlayerAttribute\" because CharGen hasn't completed!")
+         dbg("Not running \"OnPlayerSkill\" because CharGen hasn't completed!")
       end
    end
 end
@@ -754,7 +773,7 @@ function ncgdTES3MP.OnPlayerLevel(eventStatus, pid)
 end
 
 
-customEventHooks.registerHandler("OnPlayerAttribute", ncgdTES3MP.OnPlayerAttribute)
+customEventHooks.registerHandler("OnPlayerSkill", ncgdTES3MP.OnPlayerSkill)
 customEventHooks.registerHandler("OnPlayerAuthentified", ncgdTES3MP.OnPlayerAuthentified)
 customEventHooks.registerHandler("OnPlayerDeath", ncgdTES3MP.OnPlayerDeath)
 customEventHooks.registerHandler("OnPlayerDisconnect", ncgdTES3MP.OnPlayerDisconnect)
