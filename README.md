@@ -20,6 +20,10 @@ A server-side lua implementation of [Natural Character Growth And Decay - MW](ht
 
 Each attribute modifier is fully configurable.  Look for the `modifiers` key in the config file and edit to suit your needs.  The defaults 100% mirror the original NCGD.
 
+* Skill Attributes
+
+An array of strings.  Indicates which attributes are affected by a particular skill's increase.  Default: what's in mwscript NCGD
+
 * `deathDecay.enabled`
 
 Boolean.  Enables a period of accelerated decay after death.  Default: `true`
