@@ -469,6 +469,39 @@ local function getGrowthRate()
    end
 end
 
+local function recalculateDecayMemory(pid, rate)
+   if not ncgdTES3MP.chargenDone then
+      return
+   end
+
+   dbg("Called \"recalculateDecayMemory\" for pid \"" .. pid .. "\" and rate \"" .. tostring(rate) .. "\".")
+   local decayMemory
+   local baseINT = getCustomVar(pid, "baseIntelligence")
+   local playerLvl = getPlayerLevel(pid)
+
+   local twoWeeks = 336
+   local oneWeek = 168
+   local threeDays = 72
+   local oneDay = 24
+   local halfDay = 12
+
+   decayMemory = playerLvl * playerLvl
+   decayMemory = (baseINT * baseINT) / decayMemory
+
+   if rate == SLOW_DECAY then
+      decayMemory = decayMemory * twoWeeks
+      decayMemory = decayMemory + threeDays
+   elseif rate == STANDARD_DECAY then
+      decayMemory = decayMemory * oneWeek
+      decayMemory = decayMemory + oneDay
+   elseif rate == STANDARD_DECAY then
+      decayMemory = decayMemory * threeDays
+      decayMemory = decayMemory + halfDay
+   end
+
+   setCustomVar(pid, "decayMemory", decayMemory)
+end
+
 local function recalculateAttribute(pid, attribute)
    dbg("Called \"recalculateAttribute\" for pid \"" .. pid .. "\" and attribute \"" .. attribute .. "\".")
 
@@ -497,8 +530,10 @@ local function recalculateAttribute(pid, attribute)
    end
 
    -- TODO: when Intelligence is recalculated, recalculate decayMemory too (line 4089 and 4882 for Luck)
+   if attribute == Intelligence and ncgdTES3MP.config.decayRate ~= none then
+      recalculateDecayMemory(pid, getCustomVar(pid, "decayRate"))
 
-   if attribute == Luck then
+   elseif attribute == Luck then
       dbg("Luck is being recalculated...")
       temp2 = temp * 2
       temp2 = math.floor(temp2 / 27)
@@ -525,6 +560,10 @@ local function recalculateAttribute(pid, attribute)
             setPlayerLevel(pid, 1)
          end
       end
+
+      if ncgdTES3MP.config.decayRate ~= none then
+         recalculateDecayMemory(pid, getCustomVar(pid, "decayRate"))
+      end
    end
 
    -- Adjust XP based on growth speed
@@ -535,6 +574,7 @@ local function recalculateAttribute(pid, attribute)
    temp2 = math.floor(math.sqrt(temp))
    temp = temp2 + startAttr
 
+   -- TODO: need to check against the server's max attribute settings and react accordingly
    if temp > baseAttr then
       gameMsg(pid, "Your " .. attribute ..  " has increased to " .. temp .. ".")
       setAttribute(pid, attribute, temp, true)
@@ -653,7 +693,7 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
             end
          end
 
-         -- Allow custom behavior, and the default
+         -- Allow custom behavior, allow the default
          local customHandlers = true
          local defaultHandler = true
          customEventHooks.makeEventStatus(defaultHandler, customHandlers)
