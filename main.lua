@@ -399,7 +399,7 @@ local function setAttribute(pid, attribute, value, save)
    Players[pid].data.attributes[attribute].base = value
    Players[pid].data.attributes[attribute].skillIncrease = 0
    if save ~= nil then
-      Players[pid]:SaveAttributes()
+      Players[pid]:LoadAttributes()
    end
 end
 
@@ -408,7 +408,7 @@ local function getPlayerLevel(pid)
    if Players[pid].stats == nil then
       return 1
    else
-      return Players[pid].stats.level
+      return tes3mp.GetLevel(pid)
    end
 end
 
@@ -416,13 +416,12 @@ local function setPlayerLevel(pid, value)
    dbg("Called \"setPlayerLevel\" for pid \"" .. pid .. "\" and value \"" .. value .. "\"")
    if Players[pid].stats == nil then
       -- This must be a new player, just finishing CharGen
-      -- TODO: if a player starts out with a level up it doesn't get applied here...
       Players[pid].stats = { ["level"] = 1 }
    end
-   Players[pid]:LoadLevel()
    Players[pid].stats.level = value
    Players[pid].stats.levelProgress = 0
-   Players[pid]:SaveLevel()
+   Players[pid]:LoadLevel()
+   -- Players[pid]:SaveLevel()
 end
 
 local function getSkill(pid, skill, base)
@@ -508,24 +507,31 @@ local function recalculateAttribute(pid, attribute)
       temp2 = math.floor(temp2 / 27)
       temp2 = math.floor(math.sqrt(temp2))
 
-      -- TODO: level getting/setting can probably be improved
       if temp2 > 25 then
          dbg("A leveling event is happening...")
-         temp2 = temp2 - 25
+         dbg("temp2: " .. tostring(temp2))
+         local oldLevel = getPlayerLevel(pid)
+         dbg("oldLevel: " .. tostring(oldLevel))
+         local newLevel = temp2 - 25
+         dbg("newLevel: " .. tostring(newLevel))
          setPlayerLevel(pid, temp2)
+         -- customEventHooks.triggerValidators("OnPlayerLevel", {pid, newLevel})
+         dbg("getPlayerLevel(pid): " .. tostring(getPlayerLevel(pid)))
 
-         if temp2 > getPlayerLevel(pid) then
-            dbg("Player with pid \"" .. pid .. "\" reached level " .. temp2 .. ".")
+         if newLevel > oldLevel then
+            dbg("Player with pid \"" .. pid .. "\" reached level " .. newLevel .. ".")
             gameMsg(pid, "You have reached Level " .. temp2 .. ".")
-         elseif temp2 < getPlayerLevel(pid) then
-            dbg("Player with pid \"" .. pid .. "\" decayed to level " .. temp2 .. ".")
-            gameMsg(pid, "You have regressed to Level " .. temp2 .. ".")
+         elseif newLevel < oldLevel then
+            dbg("Player with pid \"" .. pid .. "\" decayed to level " .. newLevel .. ".")
+            gameMsg(pid, "You have regressed to Level " .. newLevel .. ".")
          end
 
       else
+         -- TODO: calculate level progress here.
          if Players[pid].stats ~= nil then
             if getPlayerLevel(pid) > 1 then
-               gameMsg(pid, "You have regressed to Level " .. temp2 .. ".")
+               dbg("Player with pid \"" .. pid .. "\" regressed to level 1.")
+               gameMsg(pid, "You have regressed to Level 1.")
                setPlayerLevel(pid, 1)
             end
          end
@@ -542,18 +548,20 @@ local function recalculateAttribute(pid, attribute)
 
    if temp > baseAttr then
       gameMsg(pid, "Your " .. attribute ..  " has increased to " .. temp .. ".")
+      setAttribute(pid, attribute, temp, true)
+      setCustomVar(pid, "base" .. attribute, temp)
       if attribute ~= Luck then
          recalculateLuck = true
       end
    elseif temp < baseAttr then
       gameMsg(pid, "Your " .. attribute ..  " has decayed to " .. temp .. ".")
+      setAttribute(pid, attribute, temp, true)
+      setCustomVar(pid, "base" .. attribute, temp)
       if attribute ~= Luck then
          recalculateLuck = true
       end
    end
 
-   setAttribute(pid, attribute, temp)
-   setCustomVar(pid, "base" .. attribute, temp)
    dbg("Recalculation of attribute \"" .. attribute .. "\" has completed.")
 
    return recalculateLuck
@@ -571,7 +579,6 @@ local function initAttribute(pid, attribute)
    setAttribute(pid, attribute, startAttr)
 
    recalculateAttribute(pid, attribute)
-   Players[pid]:LoadAttributes()
 end
 
 local function initSkill(pid, skill)
@@ -630,13 +637,18 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
 
             if baseProgress ~= changedProgress and ncgdBase < skillBase then
                raisedSkill = skill
+               setCustomVar(pid, "base" .. skill, skillBase)
                break
             end
          end
 
          if raisedSkill ~= nil then
+            local recalcLuck = false
             for _, attribute in pairs(getAttrsToRecalc(raisedSkill)) do
-               recalculateAttribute(pid, attribute)
+               recalcLuck = recalculateAttribute(pid, attribute)
+            end
+            if recalcLuck then
+               recalculateAttribute(pid, Luck)
             end
          end
 
@@ -760,7 +772,7 @@ function ncgdTES3MP.OnPlayerEndCharGen(eventStatus, pid)
    end
 end
 
-function ncgdTES3MP.OnPlayerLevel(eventStatus, pid)
+function ncgdTES3MP.OnPlayerLevel(eventStatus, pid, newLevel)
    if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerLevel then
       fatal("validCustomHandlers for `OnPlayerLevel` have been set to false!" ..
                "  ncgdTES3MP requires custom handlers to operate!")
@@ -772,6 +784,11 @@ function ncgdTES3MP.OnPlayerLevel(eventStatus, pid)
          warn("\"ncgdTES3MP.OnPlayerLevel\" is being force loaded!!")
       end
       info("Called \"OnPlayerLevel\" for pid \"" .. pid .. "\"")
+
+      if newLevel ~= nil then
+         setPlayerLevel(pid, newLevel)
+      end
+
       -- Block custom behavior, and the default
       local customHandlers = false
       local defaultHandler = false
@@ -779,11 +796,16 @@ function ncgdTES3MP.OnPlayerLevel(eventStatus, pid)
    end
 end
 
+-- TODO: Things that still need to be done,
+-- 1. Ensure leveling works.
+-- 2. Decay.
+-- 3. Acceleration of decay on death
+-- 4. ????
 
+customEventHooks.registerValidator("OnPlayerLevel", ncgdTES3MP.OnPlayerLevel)
 customEventHooks.registerValidator("OnPlayerSkill", ncgdTES3MP.OnPlayerSkill)
 
 customEventHooks.registerHandler("OnPlayerAuthentified", ncgdTES3MP.OnPlayerAuthentified)
 customEventHooks.registerHandler("OnPlayerDeath", ncgdTES3MP.OnPlayerDeath)
 customEventHooks.registerHandler("OnPlayerDisconnect", ncgdTES3MP.OnPlayerDisconnect)
 customEventHooks.registerHandler("OnPlayerEndCharGen", ncgdTES3MP.OnPlayerEndCharGen)
-customEventHooks.registerHandler("OnPlayerLevel", ncgdTES3MP.OnPlayerLevel)
