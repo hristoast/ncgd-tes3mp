@@ -482,6 +482,7 @@ local function recalculateAttribute(pid, attribute)
    local startAttr = getCustomVar(pid, "start" .. attribute)
 
    local recalculateLuck = false
+   -- TODO: give these better names
    local temp = 0
    local temp2
 
@@ -578,6 +579,7 @@ local function initSkill(pid, skill)
 
    local baseSkill = getSkill(pid, skill, true)
    setCustomVar(pid, "base" .. skill, baseSkill)
+   -- TODO: remove this if it doesn't get used.
    setCustomVar(pid, "start" .. skill, baseSkill)
 end
 
