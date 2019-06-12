@@ -411,15 +411,9 @@ end
 local function setPlayerLevel(pid, value)
    dbg("Called \"setPlayerLevel\" for pid \"" .. pid .. "\" and value \"" .. value .. "\"")
 
-   tes3mp.SetLevel(pid, value)
-   dbg("tes3mp.GetLevel(pid): " .. tostring(tes3mp.GetLevel(pid)))
-   tes3mp.SetLevelProgress(pid, 0)
-   -- Players[pid]:SaveLevel()
+   Players[pid].data.stats.level = value
+   Players[pid].data.stats.levelProgress = 0
    Players[pid]:LoadLevel()
-
-   -- Players[pid].data.stats.level = value
-   -- Players[pid].data.stats.levelProgress = 0
-   -- Players[pid]:LoadLevel()
    -- this is for health and etc.
    -- Players[pid]:LoadStatsDynamic()
 end
@@ -501,23 +495,6 @@ local function recalculateAttribute(pid, attribute)
       temp = temp + temp2
    end
 
-   --[[
-[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : Luck is being recalculated...
-[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : A leveling event is happening...
-[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : temp2: 27
-[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : Called "getPlayerLevel" for pid "0". 
-[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : oldLevel: 1                      
-[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : newLevel: 2
-[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : Called "setPlayerLevel" for pid "0" and value "2" 
-[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : Called "getPlayerLevel" for pid "0".   
-[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : getPlayerLevel(pid): 1
-[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : Player with pid "0" reached level 2.
-[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : Called "getGrowthRate"
-[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : Called "setAttribute" for pid "0" and attribute "Luck" and value "39"
-[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : Called "setCustomVar" for pid "0", key "baseLuck", and value "39".
-[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : Recalculation of attribute "Luck" has completed.
-   ]]--
-
    if attribute == Luck then
       dbg("Luck is being recalculated...")
       temp2 = temp * 2
@@ -525,15 +502,9 @@ local function recalculateAttribute(pid, attribute)
       temp2 = math.floor(math.sqrt(temp2))
 
       if temp2 > 25 then
-         dbg("A leveling event is happening...")
-         dbg("temp2: " .. tostring(temp2))
          local oldLevel = getPlayerLevel(pid)
-         dbg("oldLevel: " .. tostring(oldLevel))
          local newLevel = temp2 - 25
-         dbg("newLevel: " .. tostring(newLevel))
          setPlayerLevel(pid, newLevel)
-         -- customEventHooks.triggerValidators("OnPlayerLevel", {pid, newLevel})
-         dbg("getPlayerLevel(pid): " .. tostring(getPlayerLevel(pid)))
 
          if newLevel > oldLevel then
             dbg("Player with pid \"" .. pid .. "\" reached level " .. newLevel .. ".")
@@ -695,8 +666,6 @@ function ncgdTES3MP.OnPlayerAuthentified(eventStatus, pid)
       -- TODO: If there's a previous decay acceleration, resume it.
 
       ncgdTES3MP.chargenDone = true
-      -- TODO: remove this, it is for testing
-      recalculateAttribute(pid, Luck)
 
       -- Allow custom behavior, and the default
       local customHandlers = true
@@ -814,10 +783,9 @@ function ncgdTES3MP.OnPlayerLevel(eventStatus, pid, newLevel)
 end
 
 -- TODO: Things that still need to be done,
--- 1. Ensure leveling works.
--- 2. Decay.
--- 3. Acceleration of decay on death
--- 4. Health modifications
+-- 1. Decay.
+-- 2. Acceleration of decay on death
+-- 3. Health modifications
 
 customEventHooks.registerValidator("OnPlayerLevel", ncgdTES3MP.OnPlayerLevel)
 customEventHooks.registerValidator("OnPlayerSkill", ncgdTES3MP.OnPlayerSkill)
