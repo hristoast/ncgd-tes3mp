@@ -376,13 +376,13 @@ local function gameMsg(pid, msg)
    tes3mp.MessageBox(pid, -1, msg)
 end
 
--- local function randInt(rangeStart, rangeEnd)
---    -- THANKS: https://stackoverflow.com/a/20157671
---    math.random()
---    math.random()
---    math.random()
---    return math.random(rangeStart, rangeEnd)
--- end
+local function randInt(rangeStart, rangeEnd)
+   -- THANKS: https://stackoverflow.com/a/20157671
+   math.random()
+   math.random()
+   math.random()
+   return math.random(rangeStart, rangeEnd)
+end
 
 local function getAttribute(pid, attribute, base)
    dbg("Called \"getAttribute\" for pid \"" .. pid .. "\" and attribute \"" .. attribute .. "\"")
@@ -437,6 +437,7 @@ local function getCustomVar(pid, key)
    if dataBase ~= nil then
       return player.data.customVariables[NCGD][key]
    end
+   -- TODO: this return probably isnt needed.
    return nil
 end
 
@@ -494,6 +495,8 @@ local function recalculateAttribute(pid, attribute)
 
       temp = temp + temp2
    end
+
+   -- TODO: when Intelligence is recalculated, recalculate decayMemory too (line 4089 and 4882 for Luck)
 
    if attribute == Luck then
       dbg("Luck is being recalculated...")
@@ -576,6 +579,14 @@ local function initSkill(pid, skill)
    setCustomVar(pid, "start" .. skill, baseSkill)
 end
 
+local function initSkillDecay(pid, skill)
+   dbg("Called \"initSkillDecay\" for pid \"" .. pid .. "\" and skill \"" .. skill .. "\"")
+   local decayRate = randInt(0, 359)
+   -- The number below comes from the mwscript.  I'm not clear if it's random or what.
+   local magicNumber = 30
+   setCustomVar(pid, "decay" .. skill, math.floor(decayRate / magicNumber))
+end
+
 local function getDecayRate()
    dbg("Called \"getDecayRate\"")
    local decayString = string.lower(ncgdTES3MP.config.decayRate)
@@ -625,6 +636,10 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
                raisedSkill = skill
                setCustomVar(pid, "base" .. skill, skillBase)
                break
+            end
+
+            if ncgdTES3MP.config.decayRate ~= none then
+               dbg("TODO: process decay")
             end
          end
 
@@ -750,8 +765,13 @@ function ncgdTES3MP.OnPlayerEndCharGen(eventStatus, pid)
 
       for _, skill in pairs(Skills) do
          initSkill(pid, skill)
+         initSkillDecay(pid, skill)
       end
 
+      setCustomVar(pid, "oldHour", 0)
+      setCustomVar(pid, "oldDay", 0)
+      setCustomVar(pid, "timePassed", 0)
+      setCustomVar(pid, "decayMemory", 100)
       setCustomVar(pid, "decayRate", getDecayRate())
 
       dbg("NCGD CharGen completed for pid \"" .. pid .. "\"")
@@ -786,6 +806,7 @@ end
 -- 1. Decay.
 -- 2. Acceleration of decay on death
 -- 3. Health modifications
+-- 4. A command to recalculate stats (admin only, with optional pid target)
 
 customEventHooks.registerValidator("OnPlayerLevel", ncgdTES3MP.OnPlayerLevel)
 customEventHooks.registerValidator("OnPlayerSkill", ncgdTES3MP.OnPlayerSkill)
