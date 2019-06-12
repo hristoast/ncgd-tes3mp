@@ -427,10 +427,11 @@ end
 
 local function getSkill(pid, skill, base)
    dbg("Called \"getSkill\" for pid \"" .. pid .. "\" and skill \"" .. skill .. "\"")
+   local skillId = tes3mp.GetSkillId(skill)
    if base then
-      return Players[pid].data.skills[skill].base
+      return tes3mp.GetSkillBase(pid, skillId)
    else
-      return Players[pid].data.skills[skill].base - Players[pid].data.skills[skill].damage
+      return tes3mp.GetSkillBase(pid, skillId) - tes3mp.GetSkillModifier(pid, skillId)
    end
 end
 
@@ -501,12 +502,14 @@ local function recalculateAttribute(pid, attribute)
    end
 
    if attribute == Luck then
+      dbg("Luck is being recalculated...")
       temp2 = temp * 2
       temp2 = math.floor(temp2 / 27)
       temp2 = math.floor(math.sqrt(temp2))
 
       -- TODO: level getting/setting can probably be improved
       if temp2 > 25 then
+         dbg("A leveling event is happening...")
          temp2 = temp2 - 25
          setPlayerLevel(pid, temp2)
 
@@ -613,16 +616,18 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
       if ncgdTES3MP.chargenDone then
          info("Called \"OnPlayerSkill\" for pid \"" .. pid .. "\"")
 
-         Players[pid]:LoadSkills()
          local raisedSkill = nil
 
-         for _, skill in pairs(Skills) do
-            local ncgdVal = getCustomVar(pid, "base" .. skill)
-            local playerVal = getSkill(pid, skill)
+         for skill, values in pairs(Players[pid].data.skills) do
+            local ncgdBase = getCustomVar(pid, "base" .. skill)
+            local skillBase = getSkill(pid, skill, true)
 
-            if playerVal > ncgdVal then
+            local skillId = tes3mp.GetSkillId(skill)
+            local baseProgress = values.progress
+            local changedProgress = tes3mp.GetSkillProgress(pid, skillId)
+
+            if baseProgress ~= changedProgress and ncgdBase < skillBase then
                raisedSkill = skill
-               setCustomVar(pid, "base" .. skill, playerVal)
                break
             end
          end
@@ -773,7 +778,8 @@ function ncgdTES3MP.OnPlayerLevel(eventStatus, pid)
 end
 
 
-customEventHooks.registerHandler("OnPlayerSkill", ncgdTES3MP.OnPlayerSkill)
+customEventHooks.registerValidator("OnPlayerSkill", ncgdTES3MP.OnPlayerSkill)
+
 customEventHooks.registerHandler("OnPlayerAuthentified", ncgdTES3MP.OnPlayerAuthentified)
 customEventHooks.registerHandler("OnPlayerDeath", ncgdTES3MP.OnPlayerDeath)
 customEventHooks.registerHandler("OnPlayerDisconnect", ncgdTES3MP.OnPlayerDisconnect)
