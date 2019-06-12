@@ -8,7 +8,7 @@ Features:
 * Your attributes grow automatically as your skills increase.
 * Leveling happens automatically as attributes increase.
 * Attribute modifier numbers and skill attributes (which skills increase which attributes) are fully configurable.
-* Your skills will also decay over time. (Optional)
+* Your attributes, level, and skills will also decay over time. (Optional)
 * On death, the decay rate is accelerated. (Optional, with optional effect stacking)
 
 ## Installation
