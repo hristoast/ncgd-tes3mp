@@ -405,23 +405,23 @@ end
 
 local function getPlayerLevel(pid)
    dbg("Called \"getPlayerLevel\" for pid \"" .. pid .. "\".")
-   if Players[pid].stats == nil then
-      return 1
-   else
-      return tes3mp.GetLevel(pid)
-   end
+   return tes3mp.GetLevel(pid)
 end
 
 local function setPlayerLevel(pid, value)
    dbg("Called \"setPlayerLevel\" for pid \"" .. pid .. "\" and value \"" .. value .. "\"")
-   if Players[pid].stats == nil then
-      -- This must be a new player, just finishing CharGen
-      Players[pid].stats = { ["level"] = 1 }
-   end
-   Players[pid].stats.level = value
-   Players[pid].stats.levelProgress = 0
-   Players[pid]:LoadLevel()
+
+   tes3mp.SetLevel(pid, value)
+   dbg("tes3mp.GetLevel(pid): " .. tostring(tes3mp.GetLevel(pid)))
+   tes3mp.SetLevelProgress(pid, 0)
    -- Players[pid]:SaveLevel()
+   Players[pid]:LoadLevel()
+
+   -- Players[pid].data.stats.level = value
+   -- Players[pid].data.stats.levelProgress = 0
+   -- Players[pid]:LoadLevel()
+   -- this is for health and etc.
+   -- Players[pid]:LoadStatsDynamic()
 end
 
 local function getSkill(pid, skill, base)
@@ -501,6 +501,23 @@ local function recalculateAttribute(pid, attribute)
       temp = temp + temp2
    end
 
+   --[[
+[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : Luck is being recalculated...
+[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : A leveling event is happening...
+[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : temp2: 27
+[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : Called "getPlayerLevel" for pid "0". 
+[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : oldLevel: 1                      
+[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : newLevel: 2
+[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : Called "setPlayerLevel" for pid "0" and value "2" 
+[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : Called "getPlayerLevel" for pid "0".   
+[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : getPlayerLevel(pid): 1
+[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : Player with pid "0" reached level 2.
+[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : Called "getGrowthRate"
+[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : Called "setAttribute" for pid "0" and attribute "Luck" and value "39"
+[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : Called "setCustomVar" for pid "0", key "baseLuck", and value "39".
+[2019-06-12 12:44:47] [INFO]: [Script]: [ ncgdTES3MP ] : Recalculation of attribute "Luck" has completed.
+   ]]--
+
    if attribute == Luck then
       dbg("Luck is being recalculated...")
       temp2 = temp * 2
@@ -514,13 +531,13 @@ local function recalculateAttribute(pid, attribute)
          dbg("oldLevel: " .. tostring(oldLevel))
          local newLevel = temp2 - 25
          dbg("newLevel: " .. tostring(newLevel))
-         setPlayerLevel(pid, temp2)
+         setPlayerLevel(pid, newLevel)
          -- customEventHooks.triggerValidators("OnPlayerLevel", {pid, newLevel})
          dbg("getPlayerLevel(pid): " .. tostring(getPlayerLevel(pid)))
 
          if newLevel > oldLevel then
             dbg("Player with pid \"" .. pid .. "\" reached level " .. newLevel .. ".")
-            gameMsg(pid, "You have reached Level " .. temp2 .. ".")
+            gameMsg(pid, "You have reached Level " .. newLevel .. ".")
          elseif newLevel < oldLevel then
             dbg("Player with pid \"" .. pid .. "\" decayed to level " .. newLevel .. ".")
             gameMsg(pid, "You have regressed to Level " .. newLevel .. ".")
@@ -528,12 +545,10 @@ local function recalculateAttribute(pid, attribute)
 
       else
          -- TODO: calculate level progress here.
-         if Players[pid].stats ~= nil then
-            if getPlayerLevel(pid) > 1 then
-               dbg("Player with pid \"" .. pid .. "\" regressed to level 1.")
-               gameMsg(pid, "You have regressed to Level 1.")
-               setPlayerLevel(pid, 1)
-            end
+         if getPlayerLevel(pid) > 1 then
+            dbg("Player with pid \"" .. pid .. "\" regressed to level 1.")
+            gameMsg(pid, "You have regressed to Level 1.")
+            setPlayerLevel(pid, 1)
          end
       end
    end
@@ -680,6 +695,8 @@ function ncgdTES3MP.OnPlayerAuthentified(eventStatus, pid)
       -- TODO: If there's a previous decay acceleration, resume it.
 
       ncgdTES3MP.chargenDone = true
+      -- TODO: remove this, it is for testing
+      recalculateAttribute(pid, Luck)
 
       -- Allow custom behavior, and the default
       local customHandlers = true
@@ -800,7 +817,7 @@ end
 -- 1. Ensure leveling works.
 -- 2. Decay.
 -- 3. Acceleration of decay on death
--- 4. ????
+-- 4. Health modifications
 
 customEventHooks.registerValidator("OnPlayerLevel", ncgdTES3MP.OnPlayerLevel)
 customEventHooks.registerValidator("OnPlayerSkill", ncgdTES3MP.OnPlayerSkill)
