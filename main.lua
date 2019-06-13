@@ -410,7 +410,6 @@ end
 
 local function setPlayerLevel(pid, value)
    dbg("Called \"setPlayerLevel\" for pid \"" .. pid .. "\" and value \"" .. value .. "\"")
-
    Players[pid].data.stats.level = value
    Players[pid].data.stats.levelProgress = 0
    Players[pid]:LoadLevel()
@@ -437,8 +436,21 @@ local function getCustomVar(pid, key)
    if dataBase ~= nil then
       return player.data.customVariables[NCGD][key]
    end
-   -- TODO: this return probably isnt needed.
-   return nil
+end
+
+local function setSkill(pid, skill, value)
+   dbg("Called \"setSkill\" for pid \"" .. pid .. "\" and skill \""
+          .. skill .. "\" and value \"" .. value .. "\"")
+   local skillMax = getCustomVar(pid, "max" .. skill)
+
+   if value > skillMax then
+      -- Only update maxSkill if this is actually the highest value.
+      setCustomVar(pid, "max" .. skill, value)
+   end
+
+   Players[pid].data.skills[skill].base = value
+   Players[pid].data.skills[skill].progress = 0
+   Players[pid]:LoadSkills()
 end
 
 local function setCustomVar(pid, key, val)
@@ -529,7 +541,6 @@ local function recalculateAttribute(pid, attribute)
       temp = temp + temp2
    end
 
-   -- TODO: when Intelligence is recalculated, recalculate decayMemory too (line 4089 and 4882 for Luck)
    if attribute == Intelligence and ncgdTES3MP.config.decayRate ~= none then
       recalculateDecayMemory(pid, getCustomVar(pid, "decayRate"))
 
@@ -553,6 +564,7 @@ local function recalculateAttribute(pid, attribute)
          end
 
       else
+         -- TODO: need to check the server max and act accordingly
          -- TODO: calculate level progress here.
          if getPlayerLevel(pid) > 1 then
             dbg("Player with pid \"" .. pid .. "\" regressed to level 1.")
@@ -615,6 +627,7 @@ local function initSkill(pid, skill)
 
    local baseSkill = getSkill(pid, skill, true)
    setCustomVar(pid, "base" .. skill, baseSkill)
+   setCustomVar(pid, "max" .. skill, baseSkill)
    -- TODO: remove this if it doesn't get used.
    setCustomVar(pid, "start" .. skill, baseSkill)
 end
@@ -647,6 +660,62 @@ local function getAttrsToRecalc(skill)
    return ncgdTES3MP.config.skillAttributes[skill]
 end
 
+local function processDecay(pid)
+   dbg("Called \"processDecay\" for pid \"" .. pid .. "\".")
+   local daysPassed = WorldInstance.data.time.daysPassed
+   local timePassed = WorldInstance.data.time.hour
+
+   local decayMemory = getCustomVar(pid, "decayMemory")
+   local oldDay = getCustomVar(pid, "oldDay")
+   local oldHour = getCustomVar(pid, "oldHour")
+
+   while oldDay < daysPassed do
+      timePassed = timePassed + 24
+      oldDay = oldDay + 1
+   end
+
+   timePassed = timePassed - oldHour
+   setCustomVar(pid, "oldDay", oldDay)
+   setCustomVar(pid, "oldHour", oldHour)
+
+   for _, skill in pairs(Skills) do
+      local skillBase =  getCustomVar(pid, "base" .. skill)
+      local skillDecay = getCustomVar(pid, "decay" .. skill)
+      local skillMax = getCustomVar(pid, "max" .. skill)
+      setCustomVar(pid, "decay" .. skill, skillDecay + timePassed)
+
+      -- Check to see if enough decay has accumulated
+      if skillDecay > decayMemory then
+         setCustomVar(pid, "decay" .. skill, 0)
+
+         local temp = skillMax / 2
+
+         if skillBase > temp then
+            if skillBase > 15 then
+               dbg("Player with pid \"" .. pid .. "\" had skill \"" ..  skill .. "\" decay from \""
+                      .. tostring(skillBase) .. "\" to \"" .. tostring(skillBase - 1) .. "\".")
+               setSkill(pid, skill, skillBase - 1)
+               setCustomVar(pid, "base" .. skill, skillBase - 1)
+               local attributes = getAttrsToRecalc(skill)
+
+               for _, attribute in pairs(attributes) do
+                  dbg("Recalculating " .. attribute .. " due to skill decay...")
+                  local redoLuck = recalculateAttribute(pid, attribute)
+               end
+
+               if redoLuck then
+                  dbg("Recalculating Luck due to skill decay...")
+                  recalculateAttribute(pid, Luck)
+               end
+
+               logicHandler.RunConsoleCommandOnPlayer(pid, 'PlaySoundVP "skillraise", 1.0, 0.79')
+               logicHandler.RunConsoleCommandOnPlayer(pid, 'PlaySoundVP "skillraise", 1.0, 0.76')
+            end
+         end
+      end
+   end
+end
+
 function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
    if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerSkill then
       fatal("validCustomHandlers for `OnPlayerSkill` have been set to false!" ..
@@ -675,11 +744,8 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
             if baseProgress ~= changedProgress and ncgdBase < skillBase then
                raisedSkill = skill
                setCustomVar(pid, "base" .. skill, skillBase)
+               setCustomVar(pid, "max" .. skill, skillBase)
                break
-            end
-
-            if ncgdTES3MP.config.decayRate ~= none then
-               dbg("TODO: process decay")
             end
          end
 
@@ -691,6 +757,10 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
             if recalcLuck then
                recalculateAttribute(pid, Luck)
             end
+         end
+
+         if ncgdTES3MP.config.decayRate ~= none then
+            processDecay(pid)
          end
 
          -- Allow custom behavior, allow the default
