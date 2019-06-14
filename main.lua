@@ -485,8 +485,8 @@ local function getGrowthRate()
    end
 end
 
-local function recalculateDecayMemory(pid, rate)
-   if not ncgdTES3MP.chargenDone then
+local function recalculateDecayMemory(pid, rate, force)
+   if not ncgdTES3MP.chargenDone and not force then
       return
    end
 
@@ -510,7 +510,7 @@ local function recalculateDecayMemory(pid, rate)
    elseif rate == STANDARD_DECAY then
       decayMemory = decayMemory * oneWeek
       decayMemory = decayMemory + oneDay
-   elseif rate == STANDARD_DECAY then
+   elseif rate == FAST_DECAY then
       decayMemory = decayMemory * threeDays
       decayMemory = decayMemory + halfDay
    end
@@ -546,6 +546,7 @@ local function recalculateAttribute(pid, attribute)
    end
 
    if attribute == Intelligence and ncgdTES3MP.config.decayRate ~= none then
+      -- TODO: Possibly only do this when the decay rate changes
       recalculateDecayMemory(pid, getCustomVar(pid, "decayRate"))
 
    elseif attribute == Luck then
@@ -583,6 +584,7 @@ local function recalculateAttribute(pid, attribute)
       end
 
       if ncgdTES3MP.config.decayRate ~= none then
+         -- TODO: Possibly only do this when the decay rate changes
          recalculateDecayMemory(pid, getCustomVar(pid, "decayRate"))
       end
    end
@@ -705,6 +707,7 @@ local function processDecay(pid)
          local temp = skillMax / 2
 
          if skillBase > temp then
+            -- TODO: make 15 here configurable, or have it be some fraction of the max value
             if skillBase > 15 then
                dbg("Player with pid \"" .. pid .. "\" had skill \"" ..  skill .. "\" decay from \""
                       .. tostring(skillBase) .. "\" to \"" .. tostring(skillBase - 1) .. "\".")
@@ -817,7 +820,9 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
 
             if baseProgress ~= changedProgress and ncgdBase < skillBase then
                raisedSkill = skill
+               -- Update internal data with new values, and cut the decay for this skill by half
                setCustomVar(pid, "base" .. skill, skillBase)
+               setCustomVar(pid, "decay" .. skill, getCustomVar(pid, "decay" .. skill) / 2)
                setCustomVar(pid, "max" .. skill, skillBase)
                break
             end
@@ -930,7 +935,6 @@ function ncgdTES3MP.OnPlayerEndCharGen(eventStatus, pid)
       info("Called \"OnPlayerEndCharGen\" for pid \"" .. pid .. "\"")
 
       if Players[pid].data.customVariables[NCGD] == nil then
-         Players[pid]:LoadSkills()
          Players[pid].data.customVariables[NCGD] = {}
       end
 
@@ -947,11 +951,17 @@ function ncgdTES3MP.OnPlayerEndCharGen(eventStatus, pid)
          modHealth(pid)
       end
 
+      local decayRate = getDecayRate()
+      recalculateDecayMemory(pid, decayRate, true)
+      local decayMemory = getCustomVar(pid, "decayMemory")
+
       setCustomVar(pid, "oldHour", 0)
       setCustomVar(pid, "oldDay", 0)
       setCustomVar(pid, "timePassed", 0)
-      setCustomVar(pid, "decayMemory", 100)
-      setCustomVar(pid, "decayRate", getDecayRate())
+      -- The mwscript version of NCGD initializes this variable to `100`, but due to general
+      -- differences doing that here causes decay to happen much to rapidly at first (instantly).
+      setCustomVar(pid, "decayMemory", decayMemory)
+      setCustomVar(pid, "decayRate", decayRate)
 
       dbg("NCGD CharGen completed for pid \"" .. pid .. "\"")
    end
