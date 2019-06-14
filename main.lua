@@ -768,7 +768,7 @@ local function modHealth(pid)
    maxHP = math.floor(maxHP + temp)
 
    if currentHP > baseHP then
-      currentHP = currentHP / hpRatio
+      currentHP = math.floor(currentHP / hpRatio)
 
       local fortifiedHP = currentHP - maxHP
 
