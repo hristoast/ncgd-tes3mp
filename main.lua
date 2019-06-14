@@ -213,6 +213,7 @@ ncgdTES3MP.defaultConfig = {
       modifier = 2,
       stacks = false
    },
+   attributeCapMsg = "Your %s is being held back by otherworldly forces...",
    decayRate = fast,
    forceLoadOnPlayerAuthentified = false,
    forceLoadOnPlayerDeath = false,
@@ -222,6 +223,8 @@ ncgdTES3MP.defaultConfig = {
    forceLoadOnPlayerSkill = false,
    growthRate = slow,
    healthMod = true,
+   levelCap = 0,
+   levelCapMsg = "Your level is being held back by otherworldly forces...",
    modifiers = {
       -- These default values come from the original NCGD.
       Strength = {
@@ -554,18 +557,23 @@ local function recalculateAttribute(pid, attribute)
       if temp2 > 25 then
          local oldLevel = getPlayerLevel(pid)
          local newLevel = temp2 - 25
-         setPlayerLevel(pid, newLevel)
 
-         if newLevel > oldLevel then
+         if newLevel > oldLevel
+         and (ncgdTES3MP.config.levelCap > 0 and newLevel < ncgdTES3MP.config.levelCap) then
+            setPlayerLevel(pid, newLevel)
             dbg("Player with pid \"" .. pid .. "\" reached level " .. newLevel .. ".")
             gameMsg(pid, "You have reached Level " .. newLevel .. ".")
          elseif newLevel < oldLevel then
+            setPlayerLevel(pid, newLevel)
             dbg("Player with pid \"" .. pid .. "\" decayed to level " .. newLevel .. ".")
             gameMsg(pid, "You have regressed to Level " .. newLevel .. ".")
+         elseif newLevel == ncgdTES3MP.config.levelCap then
+            dbg("Player with pid \"" .. pid .. "\" denied going to level "
+                   .. newLevel .. " due to hitting the level cap.")
+            gameMsg(pid, ncgdTES3MP.config.levelCapMsg)
          end
 
       else
-         -- TODO: need to check the server max and act accordingly
          -- TODO: calculate level progress here.
          if getPlayerLevel(pid) > 1 then
             dbg("Player with pid \"" .. pid .. "\" regressed to level 1.")
@@ -587,21 +595,26 @@ local function recalculateAttribute(pid, attribute)
    temp2 = math.floor(math.sqrt(temp))
    temp = temp2 + startAttr
 
-   -- TODO: need to check against the server's max attribute settings and react accordingly
-   if temp > baseAttr then
-      gameMsg(pid, "Your " .. attribute ..  " has increased to " .. temp .. ".")
-      setAttribute(pid, attribute, temp, true)
-      setCustomVar(pid, "base" .. attribute, temp)
-      if attribute ~= Luck then
-         recalculateLuck = true
+   if (temp <= config.maxAttributeValue and attribute ~= Speed)
+   or (temp <= config.maxSpeedValue and attribute == Speed) then
+      if temp > baseAttr then
+         gameMsg(pid, "Your " .. attribute ..  " has increased to " .. temp .. ".")
+         setAttribute(pid, attribute, temp, true)
+         setCustomVar(pid, "base" .. attribute, temp)
+         if attribute ~= Luck then
+            recalculateLuck = true
+         end
+      elseif temp < baseAttr then
+         gameMsg(pid, "Your " .. attribute ..  " has decayed to " .. temp .. ".")
+         setAttribute(pid, attribute, temp, true)
+         setCustomVar(pid, "base" .. attribute, temp)
+         if attribute ~= Luck then
+            recalculateLuck = true
+         end
       end
-   elseif temp < baseAttr then
-      gameMsg(pid, "Your " .. attribute ..  " has decayed to " .. temp .. ".")
-      setAttribute(pid, attribute, temp, true)
-      setCustomVar(pid, "base" .. attribute, temp)
-      if attribute ~= Luck then
-         recalculateLuck = true
-      end
+   else
+      dbg("Attribute increase denied to pid \"" .. pid .. "\" due to hitting the server cap.")
+      gameMsg(pid, string.format(ncgdTES3MP.config.attributeCapMsg, attribute))
    end
 
    dbg("Recalculation of attribute \"" .. attribute .. "\" has completed.")
@@ -962,17 +975,14 @@ function ncgdTES3MP.OnPlayerLevel(eventStatus, pid, newLevel)
       end
 
       -- Block custom behavior, and the default
-      local customHandlers = false
-      local defaultHandler = false
-      customEventHooks.makeEventStatus(defaultHandler, customHandlers)
+      customEventHooks.makeEventStatus(false, false)
    end
 end
 
 -- TODO:
--- 1. Don't surpass server configured maximums
--- 2. Level progress in the GUI
--- 3. Acceleration of decay on death
--- 4. A command to recalculate stats (admin only, with optional pid target)
+-- 1. Level progress in the GUI
+-- 2. Acceleration of decay on death
+-- 3. A command to recalculate stats (admin only, with optional pid target)
 
 customEventHooks.registerValidator("OnPlayerLevel", ncgdTES3MP.OnPlayerLevel)
 customEventHooks.registerValidator("OnPlayerSkill", ncgdTES3MP.OnPlayerSkill)

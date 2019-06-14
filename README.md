@@ -31,6 +31,10 @@ Each attribute modifier is fully configurable.  Look for the `modifiers` key in 
 
 An array of strings.  Indicates which attributes are affected by a particular skill's increase.  Default: what's in mwscript NCGD
 
+* `attributeCapMsg`
+
+String.  Message that's displayed to players when they reach the server's attribute cap.  The string is passed to `string.format()` with an attribute name as an argument.  Default: `Your %s is being limited by otherworldly forces...`
+
 * `deathDecay.enabled`
 
 Boolean.  Enables a period of accelerated decay after death.  Default: `true`
@@ -62,3 +66,11 @@ String.  Set the rate of attribute growth:  `fast`, `standard`, or `slow`.  Defa
 * `healthMod`
 
 Boolean.  Set whether or not health modifications should be applied.  Default: `true`
+
+* `levelCap`
+
+Integer.  Set whether or not a level cap should be applied, `0` to disable.  Default: `0`
+
+* `levelCapMsg`
+
+String.  Message that's displayed to players when they reach the level cap.  Default: `Your level is being held back by otherworldly forces...`
