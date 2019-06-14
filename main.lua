@@ -221,6 +221,7 @@ ncgdTES3MP.defaultConfig = {
    forceLoadOnPlayerLevel = false,
    forceLoadOnPlayerSkill = false,
    growthRate = slow,
+   healthMod = true,
    modifiers = {
       -- These default values come from the original NCGD.
       Strength = {
@@ -354,6 +355,8 @@ ncgdTES3MP.config = DataManager.loadConfiguration(ncgdTES3MP.scriptName, ncgdTES
 
 ncgdTES3MP.chargenDone = false
 
+local healthAttributes = { Endurance, Strength, Willpower }
+
 local logPrefix = "[ " .. ncgdTES3MP.scriptName .. " ] : "
 
 local function dbg(msg)
@@ -413,8 +416,6 @@ local function setPlayerLevel(pid, value)
    Players[pid].data.stats.level = value
    Players[pid].data.stats.levelProgress = 0
    Players[pid]:LoadLevel()
-   -- this is for health and etc.
-   -- Players[pid]:LoadStatsDynamic()
 end
 
 local function getSkill(pid, skill, base)
@@ -716,6 +717,66 @@ local function processDecay(pid)
    end
 end
 
+local function getHealthGetRatio(pid)
+   -- https://en.uesp.net/wiki/Tes3Mod:GetHealthGetRatio
+   -- http://lua-users.org/wiki/SimpleRound
+   dbg("Called \"getHealthGetRatio\" for pid \"" .. pid .. "\".")
+   local playerData = Players[pid].data
+   local m = 10^1
+   return math.floor((playerData.stats.healthCurrent / playerData.stats.healthBase) * m + 0.5) / m
+end
+
+local function modHealth(pid)
+   if getHealthGetRatio(pid) == 0 then
+      return
+   end
+   dbg("Called \"modHealth\" for pid \"" .. pid .. "\".")
+   local player = Players[pid]
+
+   local baseHP = player.data.stats.healthBase
+   local currentHP = player.data.stats.healthCurrent
+
+   local End = getAttribute(pid, Endurance)
+   local Str = getAttribute(pid, Strength)
+   local Wil = getAttribute(pid, Willpower)
+
+   local hpRatio = getHealthGetRatio(pid)
+
+   local maxHP = End
+
+   -- TODO: A better name
+   local temp = Str / 2
+
+   maxHP = maxHP + temp
+   temp = Wil / 4
+   maxHP = math.floor(maxHP + temp)
+
+   if currentHP > baseHP then
+      currentHP = currentHP / hpRatio
+
+      local fortifiedHP = currentHP - maxHP
+
+      maxHP = End
+      temp = Str / 2
+      maxHP = maxHP + temp
+      temp = Wil / 4
+      maxHP = maxHP + temp
+      maxHP = maxHP + fortifiedHP
+   end
+
+   dbg("Modifying base health of pid \"" .. pid .. "\" from \"" ..
+          player.data.stats.healthBase .. "\" to \"" .. tostring(maxHP) .. "\"")
+
+   currentHP = maxHP * hpRatio
+
+   dbg("Modifying current health of pid \"" .. pid .. "\" from \"" .. player.data.stats.healthCurrent
+          .. "\" to \"" .. tostring(currentHP) .. "\"")
+
+   player.data.stats.healthBase = maxHP
+   player.data.stats.healthCurrent = currentHP
+   player:LoadStatsDynamic()
+end
+
 function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
    if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerSkill then
       fatal("validCustomHandlers for `OnPlayerSkill` have been set to false!" ..
@@ -753,6 +814,11 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
             local recalcLuck = false
             for _, attribute in pairs(getAttrsToRecalc(raisedSkill)) do
                recalcLuck = recalculateAttribute(pid, attribute)
+
+               if ncgdTES3MP.config.healthMod
+               and tableHelper.containsValue(healthAttributes, attribute) then
+                  modHealth(pid)
+               end
             end
             if recalcLuck then
                recalculateAttribute(pid, Luck)
@@ -762,11 +828,6 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
          if ncgdTES3MP.config.decayRate ~= none then
             processDecay(pid)
          end
-
-         -- Allow custom behavior, allow the default
-         local customHandlers = true
-         local defaultHandler = true
-         customEventHooks.makeEventStatus(defaultHandler, customHandlers)
       else
          dbg("Not running \"OnPlayerSkill\" because CharGen hasn't completed!")
       end
@@ -787,66 +848,57 @@ function ncgdTES3MP.OnPlayerAuthentified(eventStatus, pid)
 
       info("Called \"OnPlayerAuthentified\" for pid \"" .. pid .. "\"")
 
-      info("TODO")
-      -- TODO: If there's a previous decay acceleration, resume it.
+      if ncgdTES3MP.config.deathDecay.enabled then
+         info("TODO")
+         -- TODO: If there's a previous decay acceleration, resume it.
+      end
 
       ncgdTES3MP.chargenDone = true
-
-      -- Allow custom behavior, and the default
-      local customHandlers = true
-      local defaultHandler = true
-      customEventHooks.makeEventStatus(defaultHandler, customHandlers)
    end
 end
 
 function ncgdTES3MP.OnPlayerDeath(eventStatus, pid)
-   if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerDeath then
-      fatal("validCustomHandlers for `OnPlayerDeath` have been set to false!" ..
-               "  ncgdTES3MP requires custom handlers to operate!")
-      fatal("Exiting now to avoid problems.  Please set \"forceLoadOnPlayerDeath\"" ..
-            " to \"true\" if you're sure it's OK.")
-      tes3mp.StopServer()
-   else
-      if ncgdTES3MP.config.forceLoadOnPlayerDeath then
-         warn("\"ncgdTES3MP.OnPlayerDeath\" is being force loaded!!")
+   if ncgdTES3MP.config.deathDecay.enabled then
+      if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerDeath then
+         fatal("validCustomHandlers for `OnPlayerDeath` have been set to false!" ..
+                  "  ncgdTES3MP requires custom handlers to operate!")
+         fatal("Exiting now to avoid problems.  Please set \"forceLoadOnPlayerDeath\"" ..
+               " to \"true\" if you're sure it's OK.")
+         tes3mp.StopServer()
+      else
+         if ncgdTES3MP.config.forceLoadOnPlayerDeath then
+            warn("\"ncgdTES3MP.OnPlayerDeath\" is being force loaded!!")
+         end
+
+         info("Called \"OnPlayerDeath\" for pid \"" .. pid .. "\"")
+
+         info("TODO")
+         -- TODO: Set a timer when the player dies, and give them a temporary accelerated decay rate.
+         -- TODO: If a player disconnects, store their remaining time.  The start time of the curse will need
+         -- TODO: be stored and then some method for calculating the remaining duration will be needed.
       end
-
-      info("Called \"OnPlayerDeath\" for pid \"" .. pid .. "\"")
-
-      info("TODO")
-      -- TODO: Set a timer when the player dies, and give them a temporary accelerated decay rate.
-      -- TODO: If a player disconnects, store their remaining time.  The start time of the curse will need
-      -- TODO: be stored and then some method for calculating the remaining duration will be needed.
-
-      -- Allow custom behavior, and the default
-      local customHandlers = true
-      local defaultHandler = true
-      customEventHooks.makeEventStatus(defaultHandler, customHandlers)
    end
 end
 
 function ncgdTES3MP.OnPlayerDisconnect(eventStatus, pid)
-   if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerDisconnect then
-      fatal("validCustomHandlers for `OnPlayerDisconnect` have been set to false!" ..
-               "  ncgdTES3MP requires custom handlers to operate!")
-      fatal("Exiting now to avoid problems.  Please set \"forceLoadOnPlayerDisconnect\"" ..
-            " to \"true\" if you're sure it's OK.")
-      tes3mp.StopServer()
-   else
-      if ncgdTES3MP.config.forceLoadOnPlayerDisconnect then
-         warn("\"ncgdTES3MP.OnPlayerDisconnect\" is being force loaded!!")
+   if ncgdTES3MP.config.deathDecay.enabled then
+      if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerDisconnect then
+         fatal("validCustomHandlers for `OnPlayerDisconnect` have been set to false!" ..
+                  "  ncgdTES3MP requires custom handlers to operate!")
+         fatal("Exiting now to avoid problems.  Please set \"forceLoadOnPlayerDisconnect\"" ..
+               " to \"true\" if you're sure it's OK.")
+         tes3mp.StopServer()
+      else
+         if ncgdTES3MP.config.forceLoadOnPlayerDisconnect then
+            warn("\"ncgdTES3MP.OnPlayerDisconnect\" is being force loaded!!")
+         end
+
+         info("Called \"OnPlayerDisconnect\" for pid \"" .. pid .. "\"")
+
+         info("TODO")
+         -- TODO: When a player disconnects, if they have an accelerated decay record the logout time so that a resume
+         -- TODO: duration can be grabbed at next logon.
       end
-
-      info("Called \"OnPlayerDisconnect\" for pid \"" .. pid .. "\"")
-
-      info("TODO")
-      -- TODO: When a player disconnects, if they have an accelerated decay record the logout time so that a resume
-      -- TODO: duration can be grabbed at next logon.
-
-      -- Allow custom behavior, and the default
-      local customHandlers = true
-      local defaultHandler = true
-      customEventHooks.makeEventStatus(defaultHandler, customHandlers)
    end
 end
 
@@ -876,6 +928,10 @@ function ncgdTES3MP.OnPlayerEndCharGen(eventStatus, pid)
       for _, skill in pairs(Skills) do
          initSkill(pid, skill)
          initSkillDecay(pid, skill)
+      end
+
+      if ncgdTES3MP.config.healthMod then
+         modHealth(pid)
       end
 
       setCustomVar(pid, "oldHour", 0)
@@ -912,10 +968,10 @@ function ncgdTES3MP.OnPlayerLevel(eventStatus, pid, newLevel)
    end
 end
 
--- TODO: Things that still need to be done,
--- 1. Decay.
--- 2. Acceleration of decay on death
--- 3. Health modifications
+-- TODO:
+-- 1. Don't surpass server configured maximums
+-- 2. Level progress in the GUI
+-- 3. Acceleration of decay on death
 -- 4. A command to recalculate stats (admin only, with optional pid target)
 
 customEventHooks.registerValidator("OnPlayerLevel", ncgdTES3MP.OnPlayerLevel)

@@ -58,3 +58,7 @@ Boolean.  Force load the related event hook for this mod in the event another on
 * `growthRate`
 
 String.  Set the rate of attribute growth:  `fast`, `standard`, or `slow`.  Default: `slow`
+
+* `healthMod`
+
+Boolean.  Set whether or not health modifications should be applied.  Default: `true`
