@@ -1,3 +1,9 @@
+-- TODO:
+-- 1. Level progress in the GUI
+-- 2. Acceleration of decay on death
+-- 3. Configurable numbers for decay and growth
+-- 4. A command to recalculate stats (admin only, with optional pid target)
+
 local ncgdTES3MP = {}
 
 ncgdTES3MP.scriptName = "ncgdTES3MP"
@@ -502,7 +508,7 @@ local function recalculateDecayMemory(pid, rate, force)
    local halfDay = 12
 
    decayMemory = playerLvl * playerLvl
-   decayMemory = (baseINT * baseINT) / decayMemory
+   decayMemory = math.floor((baseINT * baseINT) / decayMemory)
 
    if rate == SLOW_DECAY then
       decayMemory = decayMemory * twoWeeks
@@ -545,16 +551,14 @@ local function recalculateAttribute(pid, attribute)
       temp = temp + temp2
    end
 
-   if attribute == Intelligence and ncgdTES3MP.config.decayRate ~= none then
-      -- TODO: Possibly only do this when the decay rate changes
-      recalculateDecayMemory(pid, getCustomVar(pid, "decayRate"))
-
-   elseif attribute == Luck then
+   if attribute == Luck then
       dbg("Luck is being recalculated...")
       temp2 = temp * 2
-      temp2 = math.floor(temp2 / 27)
+      temp2 = math.floor(temp2 / tes3mp.GetSkillCount())
       temp2 = math.floor(math.sqrt(temp2))
 
+      -- TODO: This block that handles leveling can probably be improved.
+      -- TODO: The below if, for instance, probably isn't needed.
       if temp2 > 25 then
          local oldLevel = getPlayerLevel(pid)
          local newLevel = temp2 - 25
@@ -572,26 +576,22 @@ local function recalculateAttribute(pid, attribute)
             dbg("Player with pid \"" .. pid .. "\" denied going to level "
                    .. newLevel .. " due to hitting the level cap.")
             gameMsg(pid, ncgdTES3MP.config.levelCapMsg)
+         else
+            dbg("TODO: calculate level progress here.")
          end
 
       else
-         -- TODO: calculate level progress here.
          if getPlayerLevel(pid) > 1 then
             dbg("Player with pid \"" .. pid .. "\" regressed to level 1.")
             gameMsg(pid, "You have regressed to Level 1.")
             setPlayerLevel(pid, 1)
          end
       end
-
-      if ncgdTES3MP.config.decayRate ~= none then
-         -- TODO: Possibly only do this when the decay rate changes
-         recalculateDecayMemory(pid, getCustomVar(pid, "decayRate"))
-      end
    end
 
    -- Adjust XP based on growth speed
    temp2 = temp * getGrowthRate()
-   temp = math.floor(temp2 / 27)
+   temp = math.floor(temp2 / tes3mp.GetSkillCount())
 
    -- Converts XP into attributes
    temp2 = math.floor(math.sqrt(temp))
@@ -629,7 +629,7 @@ local function initAttribute(pid, attribute)
 
    local startAttr = getAttribute(pid, attribute, true)
    -- Reduces the attribute to account for gain from skills
-   startAttr = startAttr / 2
+   startAttr = math.floor(startAttr / 2)
 
    setCustomVar(pid, "base" .. attribute, startAttr)
    setCustomVar(pid, "start" .. attribute, startAttr)
@@ -704,7 +704,7 @@ local function processDecay(pid)
       if skillDecay > decayMemory then
          setCustomVar(pid, "decay" .. skill, 0)
 
-         local temp = skillMax / 2
+         local temp = math.floor(skillMax / 2)
 
          if skillBase > temp then
             -- TODO: make 15 here configurable, or have it be some fraction of the max value
@@ -761,10 +761,10 @@ local function modHealth(pid)
    local maxHP = End
 
    -- TODO: A better name
-   local temp = Str / 2
+   local temp = math.floor(Str / 2)
 
    maxHP = maxHP + temp
-   temp = Wil / 4
+   temp = math.floor(Wil / 4)
    maxHP = math.floor(maxHP + temp)
 
    if currentHP > baseHP then
@@ -773,9 +773,9 @@ local function modHealth(pid)
       local fortifiedHP = currentHP - maxHP
 
       maxHP = End
-      temp = Str / 2
+      temp = math.floor(Str / 2)
       maxHP = maxHP + temp
-      temp = Wil / 4
+      temp = math.floor(Wil / 4)
       maxHP = maxHP + temp
       maxHP = maxHP + fortifiedHP
    end
@@ -822,9 +822,12 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
                raisedSkill = skill
                -- Update internal data with new values, and cut the decay for this skill by half
                setCustomVar(pid, "base" .. skill, skillBase)
-               setCustomVar(pid, "decay" .. skill, getCustomVar(pid, "decay" .. skill) / 2)
+               setCustomVar(pid, "decay" .. skill, math.floor(getCustomVar(pid, "decay" .. skill) / 2))
                setCustomVar(pid, "max" .. skill, skillBase)
                break
+            elseif ncgdBase ~= skillBase then
+               -- Stored values don't match the actual ones.  Did the player die or go to jail?
+               setCustomVar(pid, "base" .. skill, skillBase)
             end
          end
 
@@ -863,14 +866,10 @@ function ncgdTES3MP.OnPlayerAuthentified(eventStatus, pid)
       if ncgdTES3MP.config.forceLoadOnPlayerAuthentified then
          warn("\"ncgdTES3MP.OnPlayerAuthentified\" is being force loaded!!")
       end
-
       info("Called \"OnPlayerAuthentified\" for pid \"" .. pid .. "\"")
-
       if ncgdTES3MP.config.deathDecay.enabled then
-         info("TODO")
-         -- TODO: If there's a previous decay acceleration, resume it.
+         info("TODO: If there's a previous decay acceleration, resume it.")
       end
-
       ncgdTES3MP.chargenDone = true
    end
 end
@@ -887,10 +886,7 @@ function ncgdTES3MP.OnPlayerDeath(eventStatus, pid)
          if ncgdTES3MP.config.forceLoadOnPlayerDeath then
             warn("\"ncgdTES3MP.OnPlayerDeath\" is being force loaded!!")
          end
-
          info("Called \"OnPlayerDeath\" for pid \"" .. pid .. "\"")
-
-         info("TODO")
          -- TODO: Set a timer when the player dies, and give them a temporary accelerated decay rate.
          -- TODO: If a player disconnects, store their remaining time.  The start time of the curse will need
          -- TODO: be stored and then some method for calculating the remaining duration will be needed.
@@ -988,11 +984,6 @@ function ncgdTES3MP.OnPlayerLevel(eventStatus, pid, newLevel)
       customEventHooks.makeEventStatus(false, false)
    end
 end
-
--- TODO:
--- 1. Level progress in the GUI
--- 2. Acceleration of decay on death
--- 3. A command to recalculate stats (admin only, with optional pid target)
 
 customEventHooks.registerValidator("OnPlayerLevel", ncgdTES3MP.OnPlayerLevel)
 customEventHooks.registerValidator("OnPlayerSkill", ncgdTES3MP.OnPlayerSkill)
