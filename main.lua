@@ -1,8 +1,7 @@
 -- TODO:
 -- 1. Level progress in the GUI
 -- 2. Acceleration of decay on death
--- 3. Configurable numbers for decay and growth
--- 4. A command to recalculate stats (admin only, with optional pid target)
+-- 3. A command to recalculate stats (admin only, with optional pid target)
 
 local ncgdTES3MP = {}
 
@@ -49,15 +48,6 @@ local none = "none"
 local slow = "slow"
 local standard = "standard"
 local fast = "fast"
-
-local NO_DECAY = 0
-local SLOW_DECAY = 1
-local STANDARD_DECAY = 2
-local FAST_DECAY = 3
-
-local SLOW_GROWTH = 1
-local STANDARD_GROWTH = 2
-local FAST_GROWTH = 3
 
 local Attributes = {
    Strength, Intelligence, Willpower, Agility, Speed, Endurance, Personality, Luck
@@ -212,6 +202,17 @@ ncgdTES3MP.defaultConfig = {
          Agility,
          Endurance
       }
+   },
+   decayRates = {
+      none = 0,
+      slow = 1,
+      standard = 2,
+      fast = 3
+   },
+   growthRates = {
+      slow = 1,
+      standard = 2,
+      fast = 3
    },
    deathDecay = {
       durationHrs = 1,
@@ -481,14 +482,7 @@ end
 
 local function getGrowthRate()
    dbg("Called \"getGrowthRate\"")
-   local growString = string.lower(ncgdTES3MP.config.growthRate)
-   if growString == fast then
-      return FAST_GROWTH
-   elseif growString == standard then
-      return STANDARD_GROWTH
-   elseif growString == slow then
-      return SLOW_GROWTH
-   end
+   return ncgdTES3MP.config.growthRates[string.lower(ncgdTES3MP.config.growthRate)]
 end
 
 local function recalculateDecayMemory(pid, rate, force)
@@ -510,13 +504,13 @@ local function recalculateDecayMemory(pid, rate, force)
    decayMemory = playerLvl * playerLvl
    decayMemory = math.floor((baseINT * baseINT) / decayMemory)
 
-   if rate == SLOW_DECAY then
+   if rate == ncgdTES3MP.config.decayRates.slow then
       decayMemory = decayMemory * twoWeeks
       decayMemory = decayMemory + threeDays
-   elseif rate == STANDARD_DECAY then
+   elseif rate == ncgdTES3MP.config.decayRates.standard then
       decayMemory = decayMemory * oneWeek
       decayMemory = decayMemory + oneDay
-   elseif rate == FAST_DECAY then
+   elseif rate == ncgdTES3MP.config.decayRates.fast then
       decayMemory = decayMemory * threeDays
       decayMemory = decayMemory + halfDay
    end
@@ -669,17 +663,7 @@ end
 
 local function getDecayRate()
    dbg("Called \"getDecayRate\"")
-   local decayString = string.lower(ncgdTES3MP.config.decayRate)
-   -- TODO: DRY this up
-   if decayString == fast then
-      return FAST_DECAY
-   elseif decayString == standard then
-      return STANDARD_DECAY
-   elseif decayString == slow then
-      return SLOW_DECAY
-   elseif decayString == none then
-      return NO_DECAY
-   end
+   return ncgdTES3MP.config.decayRates[string.lower(ncgdTES3MP.config.decayRate)]
 end
 
 local function getAttrsToRecalc(skill)

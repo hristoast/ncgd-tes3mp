@@ -55,6 +55,10 @@ Boolean.  Controls whether decay acceleration will be stacked if multiple deaths
 
 String.  Set the rate of skill decay: `fast`, `standard`, `slow` or `none`.  Default: `fast`
 
+* `decayRates.*`
+
+Integers.  Control the weight of each decay level.  Default: `0`, `1`, `2`, and `3` for `none`, `slow`, `standard`, and `fast`, respectively.
+
 * `forceLoad*`
 
 Boolean.  Force load the related event hook for this mod in the event another one has disabled custom hooks.  Default: `false`
@@ -62,6 +66,10 @@ Boolean.  Force load the related event hook for this mod in the event another on
 * `growthRate`
 
 String.  Set the rate of attribute growth:  `fast`, `standard`, or `slow`.  Default: `slow`
+
+* `growthRates.*`
+
+Integers.  Control the weight of each growth level.  Default: `1`, `2`, and `3` for `slow`, `standard`, and `fast`, respectively.
 
 * `healthMod`
 
