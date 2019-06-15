@@ -858,6 +858,9 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
 end
 
 function ncgdTES3MP.OnPlayerAuthentified(eventStatus, pid)
+   if not ncgdTES3MP.config.deathDecay.enabled then
+      return
+   end
    if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerAuthentified then
       fatal("validCustomHandlers for `OnPlayerAuthentified` have been set to false!" ..
                "  ncgdTES3MP requires custom handlers to operate!")
@@ -869,9 +872,7 @@ function ncgdTES3MP.OnPlayerAuthentified(eventStatus, pid)
       warn("\"ncgdTES3MP.OnPlayerAuthentified\" is being force loaded!!")
    end
    info("Called \"OnPlayerAuthentified\" for pid \"" .. pid .. "\"")
-   if ncgdTES3MP.config.deathDecay.enabled then
-      info("TODO: If there's a previous decay acceleration, resume it.")
-   end
+   info("TODO: If there's a previous decay acceleration, resume it.")
 end
 
 function ncgdTES3MP.OnPlayerDeath(eventStatus, pid)
@@ -960,7 +961,7 @@ function ncgdTES3MP.OnPlayerEndCharGen(eventStatus, pid)
    dbg("NCGD CharGen completed for pid \"" .. pid .. "\"")
 end
 
-function ncgdTES3MP.OnPlayerLevel(eventStatus, pid, newLevel)
+function ncgdTES3MP.OnPlayerLevel(eventStatus, pid)
    if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerLevel then
       fatal("validCustomHandlers for `OnPlayerLevel` have been set to false!" ..
                "  ncgdTES3MP requires custom handlers to operate!")
@@ -972,10 +973,6 @@ function ncgdTES3MP.OnPlayerLevel(eventStatus, pid, newLevel)
       warn("\"ncgdTES3MP.OnPlayerLevel\" is being force loaded!!")
    end
    info("Called \"OnPlayerLevel\" for pid \"" .. pid .. "\"")
-
-   if newLevel ~= nil then
-      setPlayerLevel(pid, newLevel)
-   end
 
    -- Block custom behavior, and the default
    customEventHooks.makeEventStatus(false, false)
