@@ -524,6 +524,15 @@ local function recalculateDecayMemory(pid, rate, force)
    setCustomVar(pid, "decayMemory", decayMemory)
 end
 
+local function canLevel(newLevel)
+   if ncgdTES3MP.config.levelCap > 0 then
+      if newLevel >= ncgdTES3MP.config.levelCap then
+         return false
+      end
+   end
+   return true
+end
+
 local function recalculateAttribute(pid, attribute)
    dbg("Called \"recalculateAttribute\" for pid \"" .. pid .. "\" and attribute \"" .. attribute .. "\".")
 
@@ -563,21 +572,23 @@ local function recalculateAttribute(pid, attribute)
          local oldLevel = getPlayerLevel(pid)
          local newLevel = temp2 - 25
 
-         if newLevel > oldLevel
-         and (ncgdTES3MP.config.levelCap > 0 and newLevel < ncgdTES3MP.config.levelCap) then
-            setPlayerLevel(pid, newLevel)
-            dbg("Player with pid \"" .. pid .. "\" reached level " .. newLevel .. ".")
-            gameMsg(pid, "You have reached Level " .. newLevel .. ".")
-         elseif newLevel < oldLevel then
-            setPlayerLevel(pid, newLevel)
-            dbg("Player with pid \"" .. pid .. "\" decayed to level " .. newLevel .. ".")
-            gameMsg(pid, "You have regressed to Level " .. newLevel .. ".")
-         elseif newLevel == ncgdTES3MP.config.levelCap then
+         if canLevel(newLevel) then
+            if newLevel > oldLevel then
+               setPlayerLevel(pid, newLevel)
+               dbg("Player with pid \"" .. pid .. "\" reached level " .. newLevel .. ".")
+               gameMsg(pid, "You have reached Level " .. newLevel .. ".")
+            elseif newLevel < oldLevel then
+               setPlayerLevel(pid, newLevel)
+               dbg("Player with pid \"" .. pid .. "\" decayed to level " .. newLevel .. ".")
+               gameMsg(pid, "You have regressed to Level " .. newLevel .. ".")
+            else
+               dbg("TODO: calculate level progress here.")
+            end
+         else
+
             dbg("Player with pid \"" .. pid .. "\" denied going to level "
                    .. newLevel .. " due to hitting the level cap.")
             gameMsg(pid, ncgdTES3MP.config.levelCapMsg)
-         else
-            dbg("TODO: calculate level progress here.")
          end
 
       else
@@ -800,58 +811,66 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
       fatal("Exiting now to avoid problems.  Please set \"forceLoadOnPlayerSkill\"" ..
             " to \"true\" if you're sure it's OK.")
       tes3mp.StopServer()
+   end
+   if ncgdTES3MP.config.forceLoadOnPlayerSkill then
+      warn("\"ncgdTES3MP.OnPlayerSkill\" is being force loaded!!")
+   end
+
+   if ncgdTES3MP.chargenDone then
+      info("Called \"OnPlayerSkill\" for pid \"" .. pid .. "\"")
+
+      local raisedSkill = nil
+
+      for skill, values in pairs(Players[pid].data.skills) do
+         local ncgdBase = getCustomVar(pid, "base" .. skill)
+         local skillBase = getSkill(pid, skill, true)
+
+         local skillId = tes3mp.GetSkillId(skill)
+         local baseProgress = values.progress
+         local changedProgress = tes3mp.GetSkillProgress(pid, skillId)
+
+         if baseProgress ~= changedProgress and ncgdBase < skillBase then
+            raisedSkill = skill
+            -- Update internal data with new values, and cut the decay for this skill by half
+            setCustomVar(pid, "base" .. skill, skillBase)
+            setCustomVar(pid, "decay" .. skill, math.floor(getCustomVar(pid, "decay" .. skill) / 2))
+            setCustomVar(pid, "max" .. skill, skillBase)
+            break
+         elseif ncgdBase ~= skillBase then
+            -- Stored values don't match the actual ones.  Did the player die or go to jail?
+            setCustomVar(pid, "base" .. skill, skillBase)
+         end
+      end
+
+      if raisedSkill ~= nil then
+         dbg("A skill was raised")
+         local recalcLuck = false
+         local modHP = false
+         for _, attribute in pairs(getAttrsToRecalc(raisedSkill)) do
+            recalcLuck = recalculateAttribute(pid, attribute)
+
+            if ncgdTES3MP.config.healthMod
+            and tableHelper.containsValue(healthAttributes, attribute) then
+               modHP = true
+            end
+         end
+
+         if ncgdTES3MP.config.healthMod and modHP then
+            dbg("Health being redone")
+            modHealth(pid)
+         end
+
+         if recalcLuck then
+            dbg("Luck to be redone")
+            recalculateAttribute(pid, Luck)
+         end
+      end
+
+      if ncgdTES3MP.config.decayRate ~= none then
+         processDecay(pid)
+      end
    else
-      if ncgdTES3MP.config.forceLoadOnPlayerSkill then
-         warn("\"ncgdTES3MP.OnPlayerSkill\" is being force loaded!!")
-      end
-
-      if ncgdTES3MP.chargenDone then
-         info("Called \"OnPlayerSkill\" for pid \"" .. pid .. "\"")
-
-         local raisedSkill = nil
-
-         for skill, values in pairs(Players[pid].data.skills) do
-            local ncgdBase = getCustomVar(pid, "base" .. skill)
-            local skillBase = getSkill(pid, skill, true)
-
-            local skillId = tes3mp.GetSkillId(skill)
-            local baseProgress = values.progress
-            local changedProgress = tes3mp.GetSkillProgress(pid, skillId)
-
-            if baseProgress ~= changedProgress and ncgdBase < skillBase then
-               raisedSkill = skill
-               -- Update internal data with new values, and cut the decay for this skill by half
-               setCustomVar(pid, "base" .. skill, skillBase)
-               setCustomVar(pid, "decay" .. skill, math.floor(getCustomVar(pid, "decay" .. skill) / 2))
-               setCustomVar(pid, "max" .. skill, skillBase)
-               break
-            elseif ncgdBase ~= skillBase then
-               -- Stored values don't match the actual ones.  Did the player die or go to jail?
-               setCustomVar(pid, "base" .. skill, skillBase)
-            end
-         end
-
-         if raisedSkill ~= nil then
-            local recalcLuck = false
-            for _, attribute in pairs(getAttrsToRecalc(raisedSkill)) do
-               recalcLuck = recalculateAttribute(pid, attribute)
-
-               if ncgdTES3MP.config.healthMod
-               and tableHelper.containsValue(healthAttributes, attribute) then
-                  modHealth(pid)
-               end
-            end
-            if recalcLuck then
-               recalculateAttribute(pid, Luck)
-            end
-         end
-
-         if ncgdTES3MP.config.decayRate ~= none then
-            processDecay(pid)
-         end
-      else
-         dbg("Not running \"OnPlayerSkill\" because CharGen hasn't completed!")
-      end
+      dbg("Not running \"OnPlayerSkill\" because CharGen hasn't completed!")
    end
 end
 
@@ -862,16 +881,15 @@ function ncgdTES3MP.OnPlayerAuthentified(eventStatus, pid)
       fatal("Exiting now to avoid problems.  Please set \"forceLoadOnPlayerAuthentified\"" ..
             " to \"true\" if you're sure it's OK.")
       tes3mp.StopServer()
-   else
-      if ncgdTES3MP.config.forceLoadOnPlayerAuthentified then
-         warn("\"ncgdTES3MP.OnPlayerAuthentified\" is being force loaded!!")
-      end
-      info("Called \"OnPlayerAuthentified\" for pid \"" .. pid .. "\"")
-      if ncgdTES3MP.config.deathDecay.enabled then
-         info("TODO: If there's a previous decay acceleration, resume it.")
-      end
-      ncgdTES3MP.chargenDone = true
    end
+   if ncgdTES3MP.config.forceLoadOnPlayerAuthentified then
+      warn("\"ncgdTES3MP.OnPlayerAuthentified\" is being force loaded!!")
+   end
+   info("Called \"OnPlayerAuthentified\" for pid \"" .. pid .. "\"")
+   if ncgdTES3MP.config.deathDecay.enabled then
+      info("TODO: If there's a previous decay acceleration, resume it.")
+   end
+   ncgdTES3MP.chargenDone = true
 end
 
 function ncgdTES3MP.OnPlayerDeath(eventStatus, pid)
@@ -902,17 +920,13 @@ function ncgdTES3MP.OnPlayerDisconnect(eventStatus, pid)
          fatal("Exiting now to avoid problems.  Please set \"forceLoadOnPlayerDisconnect\"" ..
                " to \"true\" if you're sure it's OK.")
          tes3mp.StopServer()
-      else
-         if ncgdTES3MP.config.forceLoadOnPlayerDisconnect then
-            warn("\"ncgdTES3MP.OnPlayerDisconnect\" is being force loaded!!")
-         end
-
-         info("Called \"OnPlayerDisconnect\" for pid \"" .. pid .. "\"")
-
-         info("TODO")
-         -- TODO: When a player disconnects, if they have an accelerated decay record the logout time so that a resume
-         -- TODO: duration can be grabbed at next logon.
       end
+      if ncgdTES3MP.config.forceLoadOnPlayerDisconnect then
+         warn("\"ncgdTES3MP.OnPlayerDisconnect\" is being force loaded!!")
+      end
+      info("Called \"OnPlayerDisconnect\" for pid \"" .. pid .. "\"")
+      -- TODO: When a player disconnects, if they have an accelerated decay record the logout time so that a resume
+      -- TODO: duration can be grabbed at next logon.
    end
 end
 
@@ -923,44 +937,43 @@ function ncgdTES3MP.OnPlayerEndCharGen(eventStatus, pid)
       fatal("Exiting now to avoid problems.  Please set \"forceLoadOnPlayerEndCharGen\"" ..
             " to \"true\" if you're sure it's OK.")
       tes3mp.StopServer()
-   else
-      if ncgdTES3MP.config.forceLoadOnPlayerEndCharGen then
-         warn("\"ncgdTES3MP.OnPlayerEndCharGen\" is being force loaded!!")
-      end
-
-      info("Called \"OnPlayerEndCharGen\" for pid \"" .. pid .. "\"")
-
-      if Players[pid].data.customVariables[NCGD] == nil then
-         Players[pid].data.customVariables[NCGD] = {}
-      end
-
-      for _, attribute in pairs(Attributes) do
-         initAttribute(pid, attribute)
-      end
-
-      for _, skill in pairs(Skills) do
-         initSkill(pid, skill)
-         initSkillDecay(pid, skill)
-      end
-
-      if ncgdTES3MP.config.healthMod then
-         modHealth(pid)
-      end
-
-      local decayRate = getDecayRate()
-      recalculateDecayMemory(pid, decayRate, true)
-      local decayMemory = getCustomVar(pid, "decayMemory")
-
-      setCustomVar(pid, "oldHour", 0)
-      setCustomVar(pid, "oldDay", 0)
-      setCustomVar(pid, "timePassed", 0)
-      -- The mwscript version of NCGD initializes this variable to `100`, but due to general
-      -- differences doing that here causes decay to happen much to rapidly at first (instantly).
-      setCustomVar(pid, "decayMemory", decayMemory)
-      setCustomVar(pid, "decayRate", decayRate)
-
-      dbg("NCGD CharGen completed for pid \"" .. pid .. "\"")
    end
+   if ncgdTES3MP.config.forceLoadOnPlayerEndCharGen then
+      warn("\"ncgdTES3MP.OnPlayerEndCharGen\" is being force loaded!!")
+   end
+
+   info("Called \"OnPlayerEndCharGen\" for pid \"" .. pid .. "\"")
+
+   if Players[pid].data.customVariables[NCGD] == nil then
+      Players[pid].data.customVariables[NCGD] = {}
+   end
+
+   for _, attribute in pairs(Attributes) do
+      initAttribute(pid, attribute)
+   end
+
+   for _, skill in pairs(Skills) do
+      initSkill(pid, skill)
+      initSkillDecay(pid, skill)
+   end
+
+   if ncgdTES3MP.config.healthMod then
+      modHealth(pid)
+   end
+
+   local decayRate = getDecayRate()
+   recalculateDecayMemory(pid, decayRate, true)
+   local decayMemory = getCustomVar(pid, "decayMemory")
+
+   setCustomVar(pid, "oldHour", 0)
+   setCustomVar(pid, "oldDay", 0)
+   setCustomVar(pid, "timePassed", 0)
+   -- The mwscript version of NCGD initializes this variable to `100`, but due to general
+   -- differences doing that here causes decay to happen much to rapidly at first (instantly).
+   setCustomVar(pid, "decayMemory", decayMemory)
+   setCustomVar(pid, "decayRate", decayRate)
+
+   dbg("NCGD CharGen completed for pid \"" .. pid .. "\"")
 end
 
 function ncgdTES3MP.OnPlayerLevel(eventStatus, pid, newLevel)
@@ -970,19 +983,18 @@ function ncgdTES3MP.OnPlayerLevel(eventStatus, pid, newLevel)
       fatal("Exiting now to avoid problems.  Please set \"forceLoadOnPlayerLevel\"" ..
             " to \"true\" if you're sure it's OK.")
       tes3mp.StopServer()
-   else
-      if ncgdTES3MP.config.forceLoadOnPlayerLevel then
-         warn("\"ncgdTES3MP.OnPlayerLevel\" is being force loaded!!")
-      end
-      info("Called \"OnPlayerLevel\" for pid \"" .. pid .. "\"")
-
-      if newLevel ~= nil then
-         setPlayerLevel(pid, newLevel)
-      end
-
-      -- Block custom behavior, and the default
-      customEventHooks.makeEventStatus(false, false)
    end
+   if ncgdTES3MP.config.forceLoadOnPlayerLevel then
+      warn("\"ncgdTES3MP.OnPlayerLevel\" is being force loaded!!")
+   end
+   info("Called \"OnPlayerLevel\" for pid \"" .. pid .. "\"")
+
+   if newLevel ~= nil then
+      setPlayerLevel(pid, newLevel)
+   end
+
+   -- Block custom behavior, and the default
+   customEventHooks.makeEventStatus(false, false)
 end
 
 customEventHooks.registerValidator("OnPlayerLevel", ncgdTES3MP.OnPlayerLevel)
