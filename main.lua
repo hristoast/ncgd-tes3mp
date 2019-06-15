@@ -365,8 +365,6 @@ ncgdTES3MP.defaultConfig = {
 
 ncgdTES3MP.config = DataManager.loadConfiguration(ncgdTES3MP.scriptName, ncgdTES3MP.defaultConfig)
 
-ncgdTES3MP.chargenDone = false
-
 local healthAttributes = { Endurance, Strength, Willpower }
 
 local logPrefix = "[ " .. ncgdTES3MP.scriptName .. " ] : "
@@ -492,7 +490,7 @@ local function getGrowthRate()
 end
 
 local function recalculateDecayMemory(pid, rate, force)
-   if not ncgdTES3MP.chargenDone and not force then
+   if getCustomVar(pid, "charGenDone") == nil and not force then
       return
    end
 
@@ -795,7 +793,7 @@ local function modHealth(pid)
 end
 
 function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
-   if not ncgdTES3MP.chargenDone then
+   if getCustomVar(pid, "charGenDone") == nil then
       return
    end
    if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerSkill then
@@ -874,7 +872,6 @@ function ncgdTES3MP.OnPlayerAuthentified(eventStatus, pid)
    if ncgdTES3MP.config.deathDecay.enabled then
       info("TODO: If there's a previous decay acceleration, resume it.")
    end
-   ncgdTES3MP.chargenDone = true
 end
 
 function ncgdTES3MP.OnPlayerDeath(eventStatus, pid)
@@ -951,6 +948,7 @@ function ncgdTES3MP.OnPlayerEndCharGen(eventStatus, pid)
    recalculateDecayMemory(pid, decayRate, true)
    local decayMemory = getCustomVar(pid, "decayMemory")
 
+   setCustomVar(pid, "charGenDone", "t")
    setCustomVar(pid, "oldHour", 0)
    setCustomVar(pid, "oldDay", 0)
    setCustomVar(pid, "timePassed", 0)
