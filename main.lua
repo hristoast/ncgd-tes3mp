@@ -789,6 +789,9 @@ local function modHealth(pid)
 end
 
 function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
+   if not ncgdTES3MP.chargenDone then
+      return
+   end
    if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerSkill then
       fatal("validCustomHandlers for `OnPlayerSkill` have been set to false!" ..
                "  ncgdTES3MP requires custom handlers to operate!")
@@ -799,62 +802,54 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
    if ncgdTES3MP.config.forceLoadOnPlayerSkill then
       warn("\"ncgdTES3MP.OnPlayerSkill\" is being force loaded!!")
    end
+   info("Called \"OnPlayerSkill\" for pid \"" .. pid .. "\"")
 
-   if ncgdTES3MP.chargenDone then
-      info("Called \"OnPlayerSkill\" for pid \"" .. pid .. "\"")
+   local raisedSkill = nil
 
-      local raisedSkill = nil
+   for skill, values in pairs(Players[pid].data.skills) do
+      local ncgdBase = getCustomVar(pid, "base" .. skill)
+      local skillBase = getSkill(pid, skill, true)
 
-      for skill, values in pairs(Players[pid].data.skills) do
-         local ncgdBase = getCustomVar(pid, "base" .. skill)
-         local skillBase = getSkill(pid, skill, true)
+      local skillId = tes3mp.GetSkillId(skill)
+      local baseProgress = values.progress
+      local changedProgress = tes3mp.GetSkillProgress(pid, skillId)
 
-         local skillId = tes3mp.GetSkillId(skill)
-         local baseProgress = values.progress
-         local changedProgress = tes3mp.GetSkillProgress(pid, skillId)
+      if baseProgress ~= changedProgress and ncgdBase < skillBase then
+         raisedSkill = skill
+         -- Update internal data with new values, and cut the decay for this skill by half
+         setCustomVar(pid, "base" .. skill, skillBase)
+         setCustomVar(pid, "decay" .. skill, math.floor(getCustomVar(pid, "decay" .. skill) / 2))
+         setCustomVar(pid, "max" .. skill, skillBase)
+         break
+      elseif ncgdBase ~= skillBase then
+         -- Stored values don't match the actual ones.  Did the player die or go to jail?
+         setCustomVar(pid, "base" .. skill, skillBase)
+      end
+   end
 
-         if baseProgress ~= changedProgress and ncgdBase < skillBase then
-            raisedSkill = skill
-            -- Update internal data with new values, and cut the decay for this skill by half
-            setCustomVar(pid, "base" .. skill, skillBase)
-            setCustomVar(pid, "decay" .. skill, math.floor(getCustomVar(pid, "decay" .. skill) / 2))
-            setCustomVar(pid, "max" .. skill, skillBase)
-            break
-         elseif ncgdBase ~= skillBase then
-            -- Stored values don't match the actual ones.  Did the player die or go to jail?
-            setCustomVar(pid, "base" .. skill, skillBase)
+   if raisedSkill ~= nil then
+      local recalcLuck = false
+      local modHP = false
+      for _, attribute in pairs(getAttrsToRecalc(raisedSkill)) do
+         recalcLuck = recalculateAttribute(pid, attribute)
+
+         if ncgdTES3MP.config.healthMod
+         and tableHelper.containsValue(healthAttributes, attribute) then
+            modHP = true
          end
       end
 
-      if raisedSkill ~= nil then
-         dbg("A skill was raised")
-         local recalcLuck = false
-         local modHP = false
-         for _, attribute in pairs(getAttrsToRecalc(raisedSkill)) do
-            recalcLuck = recalculateAttribute(pid, attribute)
-
-            if ncgdTES3MP.config.healthMod
-            and tableHelper.containsValue(healthAttributes, attribute) then
-               modHP = true
-            end
-         end
-
-         if ncgdTES3MP.config.healthMod and modHP then
-            dbg("Health being redone")
-            modHealth(pid)
-         end
-
-         if recalcLuck then
-            dbg("Luck to be redone")
-            recalculateAttribute(pid, Luck)
-         end
+      if ncgdTES3MP.config.healthMod and modHP then
+         modHealth(pid)
       end
 
-      if ncgdTES3MP.config.decayRate ~= none then
-         processDecay(pid)
+      if recalcLuck then
+         recalculateAttribute(pid, Luck)
       end
-   else
-      dbg("Not running \"OnPlayerSkill\" because CharGen hasn't completed!")
+   end
+
+   if ncgdTES3MP.config.decayRate ~= none then
+      processDecay(pid)
    end
 end
 
