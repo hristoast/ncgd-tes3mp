@@ -21,6 +21,17 @@ Features:
 
 1. Optionally configure NCGD by editing the `CoreScripts/data/custom/__config_ncgdTES3MP.json` file (see below).
 
+## Commands
+
+Several commands are offered for recalculating data on the fly:
+
+* `/ncgd health`: Recalculates health
+* `/ncgd recalcattrs`: Recalculates all attributes from skill values
+* `/ncgd reloadskilldata`: Reloads NCGD's internal skill numbers from player data
+* `/ncgd all`: All of the above, in one
+
+All commands have a configurable cooldown (see below).
+
 ## Configuration
 
 * Attribute modifiers
@@ -34,6 +45,10 @@ An array of strings.  Indicates which attributes are affected by a particular sk
 * `attributeCapMsg`
 
 String.  Message that's displayed to players when they reach the server's attribute cap.  The string is passed to `string.format()` with an attribute name as an argument.  Default: `Your %s is being limited by otherworldly forces...`
+
+* `cmdCooldown`
+
+Integer.  The number of seconds between commands.  Default: `30`
 
 * `deathDecay.enabled`
 
@@ -82,3 +97,11 @@ Integer.  Set whether or not a level cap should be applied, `0` to disable.  Def
 * `levelCapMsg`
 
 String.  Message that's displayed to players when they reach the level cap.  Default: `Your level is being held back by otherworldly forces...`
+
+* `rankErr`
+
+String.  Message that's displayed to players when they try to use a command but lack the required rank.  Default: `This command requires admin privileges!`
+
+* `reqRank`
+
+Integer.  The player rank that's required to use commands.  Default: `2`

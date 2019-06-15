@@ -1,7 +1,6 @@
 -- TODO:
 -- 1. Level progress in the GUI
 -- 2. Acceleration of decay on death
--- 3. A command to recalculate stats (admin only, with optional pid target)
 
 local ncgdTES3MP = {}
 
@@ -221,6 +220,7 @@ ncgdTES3MP.defaultConfig = {
       stacks = false
    },
    attributeCapMsg = "Your %s is being held back by otherworldly forces...",
+   cmdCooldown = 30,
    decayRate = fast,
    forceLoadOnPlayerAuthentified = false,
    forceLoadOnPlayerDeath = false,
@@ -232,6 +232,8 @@ ncgdTES3MP.defaultConfig = {
    healthMod = true,
    levelCap = 0,
    levelCapMsg = "Your level is being held back by otherworldly forces...",
+   rankErr = "This command requires admin privileges!",
+   reqRank = 2,
    modifiers = {
       -- These default values come from the original NCGD.
       Strength = {
@@ -383,6 +385,10 @@ end
 
 local function info(msg)
    tes3mp.LogMessage(enumerations.log.INFO, logPrefix .. msg)
+end
+
+local function chatMsg(pid, msg)
+   tes3mp.SendMessage(pid, "[NCGD]: " .. msg .. "\n")
 end
 
 local function gameMsg(pid, msg)
@@ -976,6 +982,87 @@ function ncgdTES3MP.OnPlayerLevel(eventStatus, pid, newLevel)
    -- Block custom behavior, and the default
    customEventHooks.makeEventStatus(false, false)
 end
+
+function ncgdTES3MP.Cmd(pid, cmd)
+   info("Called \"ncgdTES3MP.Cmd\" for player \"" .. logicHandler.GetChatName(pid) .. "\".")
+   if Players[pid].data.settings.staffRank < ncgdTES3MP.config.reqRank then
+      chatMsg(pid, ncgdTES3MP.config.rankErr)
+      return
+   end
+
+   local cooldown = ncgdTES3MP.config.cmdCooldown
+   local diff = os.difftime(os.time(), getCustomVar(pid, "lastCmd"))
+
+   if diff < cooldown then
+      chatMsg(pid, "You must wait " .. cooldown - diff .. " more seconds!")
+      return
+   end
+
+   local command = cmd[2]
+   local targetPid = cmd[3]
+
+   if targetPid == nil then
+      targetPid = pid
+   end
+
+   if Players[targetPid] == nil then
+      chatMsg(pid, "That pid does not exist!")
+      return
+   end
+
+   if command == "health" then
+      modHealth(pid)
+      chatMsg(targetPid, "Health has been recalculated.")
+      setCustomVar(pid, "lastCmd", os.time())
+
+   elseif command == "recalcattrs" then
+      for _, attr in pairs(Attributes) do
+         recalculateAttribute(targetPid, attr)
+      end
+      chatMsg(targetPid, "All attributes have been recalculated.")
+      setCustomVar(pid, "lastCmd", os.time())
+
+   elseif command == "recalcdecaymem" then
+      recalculateDecayMemory(targetPid, getDecayRate(), true)
+      chatMsg(targetPid, "Decay memory has been recalculated.")
+      setCustomVar(pid, "lastCmd", os.time())
+
+   elseif command == "reloadskilldata" then
+      for _, skill in pairs(Skills) do
+         local playerBase = Players[targetPid].data.skills[skill].base
+         local skillMax = getCustomVar(targetPid, "max" .. skill)
+         setCustomVar(targetPid, "base" .. skill, playerBase)
+         if playerBase > skillMax then
+            setCustomVar(targetPid, "max" .. skill, playerBase)
+         end
+      end
+      chatMsg(targetPid, "Skill base and max value data has been updated from player data.")
+      setCustomVar(pid, "lastCmd", os.time())
+
+   elseif command == "all" then
+      modHealth(pid)
+      for _, attr in pairs(Attributes) do
+         recalculateAttribute(targetPid, attr)
+      end
+      recalculateDecayMemory(targetPid, getDecayRate(), true)
+      for _, skill in pairs(Skills) do
+         local playerBase = Players[targetPid].data.skills[skill].base
+         local skillMax = getCustomVar(targetPid, "max" .. skill)
+         setCustomVar(targetPid, "base" .. skill, playerBase)
+         if playerBase > skillMax then
+            setCustomVar(targetPid, "max" .. skill, playerBase)
+         end
+      end
+      chatMsg(targetPid, "All data and stats have been reloaded.")
+      setCustomVar(pid, "lastCmd", os.time())
+
+   else
+      chatMsg(pid, "Usage: /ncgd <health|recalcattrs|reloadskilldata|all> [optional pid]")
+   end
+end
+
+
+customCommandHooks.registerCommand("ncgd", ncgdTES3MP.Cmd)
 
 customEventHooks.registerValidator("OnPlayerLevel", ncgdTES3MP.OnPlayerLevel)
 customEventHooks.registerValidator("OnPlayerSkill", ncgdTES3MP.OnPlayerSkill)
