@@ -877,41 +877,42 @@ function ncgdTES3MP.OnPlayerAuthentified(eventStatus, pid)
 end
 
 function ncgdTES3MP.OnPlayerDeath(eventStatus, pid)
-   if ncgdTES3MP.config.deathDecay.enabled then
-      if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerDeath then
-         fatal("validCustomHandlers for `OnPlayerDeath` have been set to false!" ..
-                  "  ncgdTES3MP requires custom handlers to operate!")
-         fatal("Exiting now to avoid problems.  Please set \"forceLoadOnPlayerDeath\"" ..
-               " to \"true\" if you're sure it's OK.")
-         tes3mp.StopServer()
-      else
-         if ncgdTES3MP.config.forceLoadOnPlayerDeath then
-            warn("\"ncgdTES3MP.OnPlayerDeath\" is being force loaded!!")
-         end
-         info("Called \"OnPlayerDeath\" for pid \"" .. pid .. "\"")
-         -- TODO: Set a timer when the player dies, and give them a temporary accelerated decay rate.
-         -- TODO: If a player disconnects, store their remaining time.  The start time of the curse will need
-         -- TODO: be stored and then some method for calculating the remaining duration will be needed.
-      end
+   if not ncgdTES3MP.config.deathDecay.enabled then
+      return
    end
+   if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerDeath then
+      fatal("validCustomHandlers for `OnPlayerDeath` have been set to false!" ..
+               "  ncgdTES3MP requires custom handlers to operate!")
+      fatal("Exiting now to avoid problems.  Please set \"forceLoadOnPlayerDeath\"" ..
+            " to \"true\" if you're sure it's OK.")
+      tes3mp.StopServer()
+   end
+   if ncgdTES3MP.config.forceLoadOnPlayerDeath then
+      warn("\"ncgdTES3MP.OnPlayerDeath\" is being force loaded!!")
+   end
+   info("Called \"OnPlayerDeath\" for pid \"" .. pid .. "\"")
+   -- TODO: Set a timer when the player dies, and give them a temporary accelerated decay rate.
+   -- TODO: If a player disconnects, store their remaining time.  The start time of the curse will need
+   -- TODO: be stored and then some method for calculating the remaining duration will be needed.
 end
 
 function ncgdTES3MP.OnPlayerDisconnect(eventStatus, pid)
-   if ncgdTES3MP.config.deathDecay.enabled then
-      if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerDisconnect then
-         fatal("validCustomHandlers for `OnPlayerDisconnect` have been set to false!" ..
-                  "  ncgdTES3MP requires custom handlers to operate!")
-         fatal("Exiting now to avoid problems.  Please set \"forceLoadOnPlayerDisconnect\"" ..
-               " to \"true\" if you're sure it's OK.")
-         tes3mp.StopServer()
-      end
-      if ncgdTES3MP.config.forceLoadOnPlayerDisconnect then
-         warn("\"ncgdTES3MP.OnPlayerDisconnect\" is being force loaded!!")
-      end
-      info("Called \"OnPlayerDisconnect\" for pid \"" .. pid .. "\"")
-      -- TODO: When a player disconnects, if they have an accelerated decay record the logout time so that a resume
-      -- TODO: duration can be grabbed at next logon.
+   if not ncgdTES3MP.config.deathDecay.enabled then
+      return
    end
+   if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerDisconnect then
+      fatal("validCustomHandlers for `OnPlayerDisconnect` have been set to false!" ..
+               "  ncgdTES3MP requires custom handlers to operate!")
+      fatal("Exiting now to avoid problems.  Please set \"forceLoadOnPlayerDisconnect\"" ..
+            " to \"true\" if you're sure it's OK.")
+      tes3mp.StopServer()
+   end
+   if ncgdTES3MP.config.forceLoadOnPlayerDisconnect then
+      warn("\"ncgdTES3MP.OnPlayerDisconnect\" is being force loaded!!")
+   end
+   info("Called \"OnPlayerDisconnect\" for pid \"" .. pid .. "\"")
+   -- TODO: When a player disconnects, if they have an accelerated decay record the logout time so that a resume
+   -- TODO: duration can be grabbed at next logon.
 end
 
 function ncgdTES3MP.OnPlayerEndCharGen(eventStatus, pid)
