@@ -1010,19 +1010,19 @@ function ncgdTES3MP.Cmd(pid, cmd)
       chatMsg(targetPid, "Health has been recalculated.")
       setCustomVar(pid, "lastCmd", os.time())
 
-   elseif command == "recalcattrs" then
+   elseif command == "recalcattrs" or command == "a" then
       for _, attr in pairs(Attributes) do
          recalculateAttribute(targetPid, attr)
       end
       chatMsg(targetPid, "All attributes have been recalculated.")
       setCustomVar(pid, "lastCmd", os.time())
 
-   elseif command == "recalcdecaymem" then
+   elseif command == "recalcdecaymem" or command == "d" then
       recalculateDecayMemory(targetPid, getDecayRate(), true)
       chatMsg(targetPid, "Decay memory has been recalculated.")
       setCustomVar(pid, "lastCmd", os.time())
 
-   elseif command == "reloadskilldata" then
+   elseif command == "reloadskilldata" or command == "s" then
       for _, skill in pairs(Skills) do
          local playerBase = Players[targetPid].data.skills[skill].base
          local skillMax = getCustomVar(targetPid, "max" .. skill)
