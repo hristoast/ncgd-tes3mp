@@ -72,7 +72,7 @@ String.  Set the rate of skill decay: `fast`, `standard`, `slow` or `none`.  Def
 
 * `decayRates.*`
 
-Integers.  Control the weight of each decay level.  Default: `0`, `1`, `2`, and `3` for `none`, `slow`, `standard`, and `fast`, respectively.
+Integer.  Control the weight of each decay level.  Default: `0`, `1`, `2`, and `3` for `none`, `slow`, `standard`, and `fast`, respectively.
 
 * `forceLoad*`
 
