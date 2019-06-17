@@ -221,6 +221,7 @@ ncgdTES3MP.defaultConfig = {
    },
    attributeCapMsg = "Your %s is being held back by otherworldly forces...",
    cmdCooldown = 30,
+   decayMinLvl = 15,
    decayRate = fast,
    forceLoadOnPlayerAuthentified = false,
    forceLoadOnPlayerDeath = false,
@@ -695,11 +696,10 @@ local function processDecay(pid)
       if skillDecay > decayMemory then
          setCustomVar(pid, "decay" .. skill, 0)
 
-         local temp = math.floor(skillMax / 2)
-
-         if skillBase > temp then
-            -- TODO: make 15 here configurable, or have it be some fraction of the max value
-            if skillBase > 15 then
+         -- Only proceed with decay if the skill isn't lower than half it's known max
+         if skillBase > math.floor(skillMax / 2) then
+            -- ... and if it isn't already lower than the minimum level.
+            if skillBase > ncgdTES3MP.config.decayMinLvl then
                dbg("Player with pid \"" .. pid .. "\" had skill \"" ..  skill .. "\" decay from \""
                       .. tostring(skillBase) .. "\" to \"" .. tostring(skillBase - 1) .. "\".")
                setSkill(pid, skill, skillBase - 1)

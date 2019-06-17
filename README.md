@@ -66,6 +66,10 @@ Integer.  The default decay rate is multipled by this value after death.  Defaul
 
 Boolean.  Controls whether decay acceleration will be stacked if multiple deaths occur before the duration expires.  Default: `false`
 
+* `decayMinLvl`
+
+Integer.  The minimum level a skill can decay to.  Default: `15`
+
 * `decayRate`
 
 String.  Set the rate of skill decay: `fast`, `standard`, `slow` or `none`.  Default: `fast`
