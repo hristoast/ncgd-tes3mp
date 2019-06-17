@@ -724,6 +724,7 @@ local function processDecay(pid)
                   recalculateAttribute(pid, Luck)
                end
 
+               -- TODO: Configurable decay sound
                logicHandler.RunConsoleCommandOnPlayer(pid, 'PlaySoundVP "skillraise", 1.0, 0.79')
                logicHandler.RunConsoleCommandOnPlayer(pid, 'PlaySoundVP "skillraise", 1.0, 0.76')
             end
@@ -954,7 +955,7 @@ function ncgdTES3MP.OnPlayerEndCharGen(eventStatus, pid)
    setCustomVar(pid, "oldDay", 0)
    setCustomVar(pid, "timePassed", 0)
    -- The mwscript version of NCGD initializes this variable to `100`, but due to general
-   -- differences doing that here causes decay to happen much to rapidly at first (instantly).
+   -- differences doing that here causes decay to happen much too rapidly at first (instantly).
    setCustomVar(pid, "decayMemory", decayMemory)
    setCustomVar(pid, "decayRate", decayRate)
 
