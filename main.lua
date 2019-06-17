@@ -444,12 +444,8 @@ end
 
 local function getCustomVar(pid, key)
    dbg("Called \"getCustomVar\" for pid \"" .. pid .. "\" and key \"" .. key .. "\"")
-
-   local player = Players[pid]
-   local dataBase = player.data.customVariables[NCGD]
-
-   if dataBase ~= nil then
-      return player.data.customVariables[NCGD][key]
+   if Players[pid].data.customVariables[NCGD] ~= nil then
+      return Players[pid].data.customVariables[NCGD][key]
    end
 end
 
@@ -470,12 +466,8 @@ end
 
 local function setCustomVar(pid, key, val)
    dbg("Called \"setCustomVar\" for pid \"" .. pid .. "\", key \"" .. key .. "\", and value \"" .. val .. "\".")
-
-   local player = Players[pid]
-   local dataBase = player.data.customVariables[NCGD]
-
-   if dataBase ~= nil then
-      player.data.customVariables[NCGD][key] = val
+   if Players[pid].data.customVariables[NCGD] ~= nil then
+      Players[pid].data.customVariables[NCGD][key] = val
    end
 end
 
