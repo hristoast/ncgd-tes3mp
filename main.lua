@@ -1005,7 +1005,7 @@ function ncgdTES3MP.Cmd(pid, cmd)
       return
    end
 
-   if command == "health" then
+   if command == "health" or command == "h" then
       modHealth(pid)
       chatMsg(targetPid, "Health has been recalculated.")
       setCustomVar(pid, "lastCmd", os.time())
