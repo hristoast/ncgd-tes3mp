@@ -25,9 +25,9 @@ Features:
 
 Several commands are offered for recalculating data on the fly:
 
-* `/ncgd health`: Recalculates health
-* `/ncgd recalcattrs`: Recalculates all attributes from skill values
-* `/ncgd reloadskilldata`: Reloads NCGD's internal skill numbers from player data
+* `/ncgd health`: Recalculates health (shortcut: `h`)
+* `/ncgd recalcattrs`: Recalculates all attributes from skill values (shortcut: `a`)
+* `/ncgd reloadskilldata`: Reloads NCGD's internal skill numbers from player data (shortcut: `s`)
 * `/ncgd all`: All of the above, in one
 
 All commands have a configurable cooldown (see below).

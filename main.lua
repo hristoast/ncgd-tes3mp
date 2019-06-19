@@ -800,6 +800,7 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
       local baseProgress = values.progress
       local changedProgress = tes3mp.GetSkillProgress(pid, skillId)
 
+      -- TODO: This outer if might not be needed.
       if baseProgress ~= changedProgress and ncgdBase < skillBase then
          raisedSkill = skill
          -- Update internal data with new values, and cut the decay for this skill by half
