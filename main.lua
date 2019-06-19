@@ -790,41 +790,33 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
    end
    info("Called \"OnPlayerSkill\" for pid \"" .. pid .. "\"")
 
-   local raisedSkill = nil
+   local changedSkill
 
-   for skill, values in pairs(Players[pid].data.skills) do
+   for skill, _ in pairs(Players[pid].data.skills) do
       local ncgdBase = getCustomVar(pid, "base" .. skill)
       local skillBase = getSkill(pid, skill, true)
 
-      local skillId = tes3mp.GetSkillId(skill)
-      local baseProgress = values.progress
-      local changedProgress = tes3mp.GetSkillProgress(pid, skillId)
-
-      -- TODO: This outer if might not be needed.
-      if baseProgress ~= changedProgress and ncgdBase < skillBase then
-         raisedSkill = skill
-         -- Update internal data with new values, and cut the decay for this skill by half
-         setCustomVar(pid, "base" .. skill, skillBase)
-         setCustomVar(pid, "decay" .. skill, math.floor(getCustomVar(pid, "decay" .. skill) / 2))
-         setCustomVar(pid, "max" .. skill, skillBase)
-         break
-      elseif ncgdBase ~= skillBase then
-         -- Stored values don't match the actual ones.
-         -- Did the player die or go to jail?  Or was a trainer used?
+      if ncgdBase ~= skillBase then
+         changedSkill = skill
          if skillBase > getCustomVar(pid, "max" .. skill) then
+            -- TODO: set vars as a table so they can be saved all at once
+            setCustomVar(pid, "decay" .. skill, math.floor(getCustomVar(pid, "decay" .. skill) / 2))
             setCustomVar(pid, "max" .. skill, skillBase)
          end
          setCustomVar(pid, "base" .. skill, skillBase)
       end
+
       -- Zero out levelProgress to stop the vanilla level up
       Players[pid].data.stats.levelProgress = 0
       Players[pid]:LoadLevel()
+
+      if changedSkill then break end
    end
 
-   if raisedSkill ~= nil then
+   if changedSkill then
       local recalcLuck = false
       local modHP = false
-      for _, attribute in pairs(getAttrsToRecalc(raisedSkill)) do
+      for _, attribute in pairs(getAttrsToRecalc(changedSkill)) do
          recalcLuck = recalculateAttribute(pid, attribute)
 
          if ncgdTES3MP.config.healthMod
