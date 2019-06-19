@@ -657,28 +657,46 @@ local function getAttrsToRecalc(skill)
    return ncgdTES3MP.config.skillAttributes[skill]
 end
 
+local function updatePlayTime(pid)
+   dbg("Called \"updatePlayTime\" for pid \"" .. pid .. "\"")
+   local pt = getCustomVar(pid, "loginPlayTime")
+   local loginDaysPassed = pt["daysPassed"]
+   local loginHour = pt["hour"]
+   local loginPlayTime = pt["playTime"]
+
+   local nowDaysPassed = WorldInstance.data.time.daysPassed
+   local nowHour = WorldInstance.data.time.hour
+
+   local daysPassed = loginDaysPassed - nowDaysPassed
+
+   local totalHours = math.floor(daysPassed * 24 + loginPlayTime - loginHour + nowHour)
+
+   setCustomVar(pid, "playTime", totalHours)
+   return totalHours
+end
+
 local function processDecay(pid)
    dbg("Called \"processDecay\" for pid \"" .. pid .. "\".")
-   local daysPassed = WorldInstance.data.time.daysPassed
-   local timePassed = WorldInstance.data.time.hour
+   local hoursPassed = updatePlayTime(pid)
+   local daysPassed = math.floor(hoursPassed / 24)
+   local worldHour = WorldInstance.data.time.hour
+   local timePassed = worldHour
 
    local decayMemory = getCustomVar(pid, "decayMemory")
-   local oldDay = getCustomVar(pid, "oldDay")
-   local oldHour = getCustomVar(pid, "oldHour")
+   local oldDay = getCustomVar(pid, "oldDay") or 0
 
    while oldDay < daysPassed do
       timePassed = timePassed + 24
       oldDay = oldDay + 1
    end
 
-   timePassed = timePassed - oldHour
-   setCustomVar(pid, "oldDay", oldDay)
-   setCustomVar(pid, "oldHour", oldHour)
+   setCustomVar(pid, "oldDay", math.floor(hoursPassed / 24))
 
    for _, skill in pairs(Skills) do
       local skillBase =  getCustomVar(pid, "base" .. skill)
       local skillDecay = getCustomVar(pid, "decay" .. skill)
       local skillMax = getCustomVar(pid, "max" .. skill)
+      -- TODO: Store decay rates as a table so they can be saved all at once, vs one at a time.
       setCustomVar(pid, "decay" .. skill, skillDecay + timePassed)
 
       -- Check to see if enough decay has accumulated
@@ -840,7 +858,9 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
 end
 
 function ncgdTES3MP.OnPlayerAuthentified(eventStatus, pid)
-   if not ncgdTES3MP.config.deathDecay.enabled then
+   if not ncgdTES3MP.config.deathDecay.enabled and ncgdTES3MP.config.decayRate == none  then
+      -- This method only handles stuff related to decay and death-caused
+      -- acceleration of it.  If both are disabled, exit immediately.
       return
    end
    if not eventStatus.validCustomHandlers and not ncgdTES3MP.config.forceLoadOnPlayerAuthentified then
@@ -854,7 +874,14 @@ function ncgdTES3MP.OnPlayerAuthentified(eventStatus, pid)
       warn("\"ncgdTES3MP.OnPlayerAuthentified\" is being force loaded!!")
    end
    info("Called \"OnPlayerAuthentified\" for pid \"" .. pid .. "\"")
-   info("TODO: If there's a previous decay acceleration, resume it.")
+   setCustomVar(pid, "loginPlayTime",
+                {
+                   ["daysPassed"] = WorldInstance.data.time.daysPassed,
+                   ["hour"] = WorldInstance.data.time.hour,
+                   -- playTime represents the total in-game hours the player has spent playing.
+                   ["playTime"] = getCustomVar(pid, "playTime") or 0
+                }
+   )
 end
 
 function ncgdTES3MP.OnPlayerDeath(eventStatus, pid)
@@ -892,8 +919,7 @@ function ncgdTES3MP.OnPlayerDisconnect(eventStatus, pid)
       warn("\"ncgdTES3MP.OnPlayerDisconnect\" is being force loaded!!")
    end
    info("Called \"OnPlayerDisconnect\" for pid \"" .. pid .. "\"")
-   -- TODO: When a player disconnects, if they have an accelerated decay record the logout time so that a resume
-   -- TODO: duration can be grabbed at next logon.
+   updatePlayTime(pid)
 end
 
 function ncgdTES3MP.OnPlayerEndCharGen(eventStatus, pid)
@@ -932,9 +958,6 @@ function ncgdTES3MP.OnPlayerEndCharGen(eventStatus, pid)
    local decayMemory = getCustomVar(pid, "decayMemory")
 
    setCustomVar(pid, "charGenDone", "t")
-   setCustomVar(pid, "oldHour", 0)
-   setCustomVar(pid, "oldDay", 0)
-   setCustomVar(pid, "timePassed", 0)
    -- The mwscript version of NCGD initializes this variable to `100`, but due to general
    -- differences doing that here causes decay to happen much too rapidly at first (instantly).
    setCustomVar(pid, "decayMemory", decayMemory)
@@ -1049,10 +1072,10 @@ end
 
 customCommandHooks.registerCommand("ncgd", ncgdTES3MP.Cmd)
 
+customEventHooks.registerValidator("OnPlayerDisconnect", ncgdTES3MP.OnPlayerDisconnect)
 customEventHooks.registerValidator("OnPlayerLevel", ncgdTES3MP.OnPlayerLevel)
 customEventHooks.registerValidator("OnPlayerSkill", ncgdTES3MP.OnPlayerSkill)
 
 customEventHooks.registerHandler("OnPlayerAuthentified", ncgdTES3MP.OnPlayerAuthentified)
 customEventHooks.registerHandler("OnPlayerDeath", ncgdTES3MP.OnPlayerDeath)
-customEventHooks.registerHandler("OnPlayerDisconnect", ncgdTES3MP.OnPlayerDisconnect)
 customEventHooks.registerHandler("OnPlayerEndCharGen", ncgdTES3MP.OnPlayerEndCharGen)
