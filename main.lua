@@ -454,12 +454,14 @@ local function setSkill(pid, skill, value)
    if value > getCustomVar(pid, "max" .. skill) then
       setCustomVar(pid, "max" .. skill, value)
    end
+   -- TODO: Can this be optimized to only send the changed skill?
    Players[pid].data.skills[skill].base = value
    Players[pid]:LoadSkills()
 end
 
 local function setCustomVar(pid, key, val)
-   dbg("Called \"setCustomVar\" for pid \"" .. pid .. "\", key \"" .. key .. "\", and value \"" .. val .. "\".")
+   dbg("Called \"setCustomVar\" for pid \"" .. pid .. "\", key \"" ..
+          key .. "\", and value \"" .. tostring(val) .. "\".")
    if Players[pid].data.customVariables[NCGD] ~= nil then
       Players[pid].data.customVariables[NCGD][key] = val
    end
@@ -631,7 +633,6 @@ end
 
 local function initSkill(pid, skill)
    dbg("Called \"initSkill\" for pid \"" .. pid .. "\" and skill \"" .. skill .. "\"")
-
    local baseSkill = getSkill(pid, skill, true)
    setCustomVar(pid, "base" .. skill, baseSkill)
    setCustomVar(pid, "max" .. skill, baseSkill)
@@ -642,9 +643,8 @@ end
 local function initSkillDecay(pid, skill)
    dbg("Called \"initSkillDecay\" for pid \"" .. pid .. "\" and skill \"" .. skill .. "\"")
    local decayRate = randInt(0, 359)
-   -- The number below comes from the mwscript.  I'm not clear if it's random or what.
-   local magicNumber = 30
-   setCustomVar(pid, "decay" .. skill, math.floor(decayRate / magicNumber))
+   -- The 30 below comes from the mwscript.  I'm not clear if it's random or what.
+   setCustomVar(pid, "decay" .. skill, math.floor(decayRate / 30))
 end
 
 local function getDecayRate()
