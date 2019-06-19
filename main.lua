@@ -996,8 +996,10 @@ function ncgdTES3MP.Cmd(pid, cmd)
    end
 
    if command == "health" or command == "h" then
-      modHealth(pid)
-      chatMsg(targetPid, "Health has been recalculated.")
+      if ncgdTES3MP.config.healthMod then
+         modHealth(pid)
+         chatMsg(targetPid, "Health has been recalculated.")
+      end
       setCustomVar(pid, "lastCmd", os.time())
 
    elseif command == "recalcattrs" or command == "a" then
@@ -1008,9 +1010,11 @@ function ncgdTES3MP.Cmd(pid, cmd)
       setCustomVar(pid, "lastCmd", os.time())
 
    elseif command == "recalcdecaymem" or command == "d" then
+   if ncgdTES3MP.config.decayRate ~= none then
       recalculateDecayMemory(targetPid, getDecayRate(), true)
       chatMsg(targetPid, "Decay memory has been recalculated.")
-      setCustomVar(pid, "lastCmd", os.time())
+   end
+   setCustomVar(pid, "lastCmd", os.time())
 
    elseif command == "reloadskilldata" or command == "s" then
       for _, skill in pairs(Skills) do
@@ -1025,11 +1029,15 @@ function ncgdTES3MP.Cmd(pid, cmd)
       setCustomVar(pid, "lastCmd", os.time())
 
    elseif command == "all" then
-      modHealth(pid)
+      if ncgdTES3MP.config.healthMod then
+         modHealth(pid)
+      end
       for _, attr in pairs(Attributes) do
          recalculateAttribute(targetPid, attr)
       end
-      recalculateDecayMemory(targetPid, getDecayRate(), true)
+      if ncgdTES3MP.config.decayRate ~= none then
+         recalculateDecayMemory(targetPid, getDecayRate(), true)
+      end
       for _, skill in pairs(Skills) do
          local playerBase = Players[targetPid].data.skills[skill].base
          local skillMax = getCustomVar(targetPid, "max" .. skill)
