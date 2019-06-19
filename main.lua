@@ -1,6 +1,5 @@
 -- TODO:
--- 1. Level progress in the GUI
--- 2. Acceleration of decay on death
+-- 1. Acceleration of decay on death
 
 local ncgdTES3MP = {}
 
@@ -429,7 +428,6 @@ end
 local function setPlayerLevel(pid, value)
    dbg("Called \"setPlayerLevel\" for pid \"" .. pid .. "\" and value \"" .. value .. "\"")
    Players[pid].data.stats.level = value
-   Players[pid].data.stats.levelProgress = 0
    Players[pid]:LoadLevel()
 end
 
@@ -453,15 +451,10 @@ end
 local function setSkill(pid, skill, value)
    dbg("Called \"setSkill\" for pid \"" .. pid .. "\" and skill \""
           .. skill .. "\" and value \"" .. value .. "\"")
-   local skillMax = getCustomVar(pid, "max" .. skill)
-
-   if value > skillMax then
-      -- Only update maxSkill if this is actually the highest value.
+   if value > getCustomVar(pid, "max" .. skill) then
       setCustomVar(pid, "max" .. skill, value)
    end
-
    Players[pid].data.skills[skill].base = value
-   Players[pid].data.skills[skill].progress = 0
    Players[pid]:LoadSkills()
 end
 
@@ -557,8 +550,6 @@ local function recalculateAttribute(pid, attribute)
       temp2 = math.floor(temp2 / tes3mp.GetSkillCount())
       temp2 = math.floor(math.sqrt(temp2))
 
-      -- TODO: This block that handles leveling can probably be improved.
-      -- TODO: The below if, for instance, probably isn't needed.
       if temp2 > 25 then
          local oldLevel = getPlayerLevel(pid)
          local newLevel = temp2 - 25
@@ -572,8 +563,6 @@ local function recalculateAttribute(pid, attribute)
                setPlayerLevel(pid, newLevel)
                dbg("Player with pid \"" .. pid .. "\" decayed to level " .. newLevel .. ".")
                gameMsg(pid, "You have regressed to Level " .. newLevel .. ".")
-            else
-               dbg("TODO: calculate level progress here.")
             end
          else
 
@@ -819,9 +808,16 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
          setCustomVar(pid, "max" .. skill, skillBase)
          break
       elseif ncgdBase ~= skillBase then
-         -- Stored values don't match the actual ones.  Did the player die or go to jail?
+         -- Stored values don't match the actual ones.
+         -- Did the player die or go to jail?  Or was a trainer used?
+         if skillBase > getCustomVar(pid, "max" .. skill) then
+            setCustomVar(pid, "max" .. skill, skillBase)
+         end
          setCustomVar(pid, "base" .. skill, skillBase)
       end
+      -- Zero out levelProgress to stop the vanilla level up
+      Players[pid].data.stats.levelProgress = 0
+      Players[pid]:LoadLevel()
    end
 
    if raisedSkill ~= nil then
