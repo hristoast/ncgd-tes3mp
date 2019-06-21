@@ -934,7 +934,6 @@ function ncgdTES3MP.Cmd(pid, cmd)
          modHealth(pid)
          chatMsg(targetPid, "Health has been recalculated.")
       end
-      setCustomVar(pid, "lastCmd", os.time())
 
    elseif command == "recalcattrs" or command == "a" then
       for _, attr in pairs(Attributes) do
@@ -948,7 +947,6 @@ function ncgdTES3MP.Cmd(pid, cmd)
       recalculateDecayMemory(targetPid, decayRate, true)
       chatMsg(targetPid, "Decay memory has been recalculated.")
    end
-   setCustomVar(pid, "lastCmd", os.time())
 
    elseif command == "reloadskilldata" or command == "s" then
       for _, skill in pairs(Skills) do
@@ -961,7 +959,6 @@ function ncgdTES3MP.Cmd(pid, cmd)
       end
       setCustomVar(pid, "skills", skillsTable)
       chatMsg(targetPid, "Skill base and max value data has been updated from player data.")
-      setCustomVar(pid, "lastCmd", os.time())
 
    elseif command == "all" then
       if ncgdTES3MP.config.healthMod then
@@ -983,11 +980,12 @@ function ncgdTES3MP.Cmd(pid, cmd)
       end
       setCustomVar(pid, "skills", skillsTable)
       chatMsg(targetPid, "All data and stats have been reloaded.")
-      setCustomVar(pid, "lastCmd", os.time())
 
    else
       chatMsg(pid, "Usage: /ncgd <health|recalcattrs|reloadskilldata|all> [optional pid]")
+      return
    end
+   setCustomVar(pid, "lastCmd", os.time())
 end
 
 
