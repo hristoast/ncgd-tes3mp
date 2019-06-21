@@ -1,6 +1,3 @@
--- TODO:
--- 1. Acceleration of decay on death
-
 local ncgdTES3MP = {}
 
 ncgdTES3MP.scriptName = "ncgdTES3MP"
@@ -605,7 +602,6 @@ local function getDecayRate(pid)
 end
 
 local function updatePlayTime(pid)
-   dbg("Called \"updatePlayTime\" for pid \"" .. pid .. "\"")
    local pt = getCustomVar(pid, "loginPlayTime")
    local loginDaysPassed = pt["daysPassed"]
    local loginHour = pt["hour"]
@@ -623,11 +619,21 @@ local function updatePlayTime(pid)
 end
 
 local function processDecay(pid)
-   dbg("Called \"processDecay\" for pid \"" .. pid .. "\".")
    local hoursPassed = updatePlayTime(pid)
    local daysPassed = math.floor(hoursPassed / 24)
    local worldHour = WorldInstance.data.time.hour
    local timePassed = worldHour
+
+   local deathTime = getCustomVar(pid, "deathTime")
+
+   if deathTime ~= nil then
+      local playTime = getCustomVar(pid, "playTime")
+      if playTime - deathTime > ncgdTES3MP.config.deathDecay.durationHrs then
+         setCustomVar(pid, "deathTime", nil)
+         -- Revert accelerated decay
+         setCustomVar(pid, "decayRate", ncgdTES3MP.config.decayRates[string.lower(ncgdTES3MP.config.decayRate)])
+      end
+   end
 
    local decayMemory = getCustomVar(pid, "decayMemory")
    local oldDay = getCustomVar(pid, "oldDay") or 0
@@ -826,9 +832,23 @@ function ncgdTES3MP.OnPlayerDeath(eventStatus, pid)
    if not ncgdTES3MP.config.deathDecay.enabled then return end
    safelyRunEvent(eventStatus, "OnPlayerDeath", ncgdTES3MP.config.forceLoadOnPlayerDeath)
    info("Called \"OnPlayerDeath\" for pid \"" .. pid .. "\"")
-   -- TODO: Set a timer when the player dies, and give them a temporary accelerated decay rate.
-   -- TODO: If a player disconnects, store their remaining time.  The start time of the curse will need
-   -- TODO: be stored and then some method for calculating the remaining duration will be needed.
+
+   local deathTime = getCustomVar(pid, "deathTime")
+
+   if deathTime == nil or ncgdTES3MP.config.deathDecay.stacks then
+      local msg = "Death has caused your decay rate to increase " .. ncgdTES3MP.config.deathDecay.modifier
+      .. "x for " .. ncgdTES3MP.config.deathDecay.durationHrs
+
+      if ncgdTES3MP.config.deathDecay.durationHrs > 1 then
+         msg = msg .. " hours..."
+      else
+         msg = msg .. " hour..."
+      end
+
+      chatMsg(pid, msg)
+      setCustomVar(pid, "deathTime", getCustomVar(pid, "playTime"))
+      setCustomVar(pid, "decayRate", getCustomVar(pid, "decayRate") * ncgdTES3MP.config.deathDecay.modifier)
+   end
 end
 
 function ncgdTES3MP.OnPlayerDisconnect(eventStatus, pid)

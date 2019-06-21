@@ -67,7 +67,7 @@ Boolean.  Enables a period of accelerated decay after death.  Default: `true`
 
 * `deathDecay.durationHrs`
 
-Integer.  The number of real world hours accelerated decay caused by death will last.  Default: `1`
+Integer.  The number of in-game hours accelerated decay caused by death will last.  Default: `1`
 
 * `deathDecay.modifier`
 
@@ -75,7 +75,7 @@ Integer.  The default decay rate is multipled by this value after death.  Defaul
 
 * `deathDecay.stack`
 
-Boolean.  Controls whether decay acceleration will be stacked if multiple deaths occur before the duration expires.  Default: `false`
+Boolean.  Controls whether decay acceleration increases will be stacked if multiple deaths occur before the duration expires.  Default: `false`
 
 * `decayMinLvl`
 
