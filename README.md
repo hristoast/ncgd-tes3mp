@@ -21,6 +21,17 @@ Features:
 
 1. Optionally configure NCGD by editing the `CoreScripts/data/custom/__config_ncgdTES3MP.json` file (see below).
 
+## Differences from MWscript NCGD
+
+* No mastery effects; skills can raise to whatever the server max values are without them.
+* Scripts are not ran every frame or tick, but when `OnPlayerSkill` fires (among other events used).
+* There are no in-game player dialogue GUIs, and there is currently no way to migrate a non-NCGD player.
+* Decay rates are gotten from an individual player's in-game hours spent playing, not the total world time that's passed.
+* This version is highly configurable; almost every value that matters is tweakable (see below).
+* Optional decay acceleration when a player dies, that is optionally stackable if they keep dying (see below).
+* In-game chat commands for recalculating things on the fly.  Optionally for admins only (see below).
+* No client plugin is needed.
+
 ## Commands
 
 Several commands are offered for recalculating data on the fly:
