@@ -5,6 +5,7 @@ A server-side lua implementation of [Natural Character Growth And Decay - MW](ht
 Features:
 
 * Requires [DataManager](https://github.com/tes3mp-scripts/DataManager)!
+* **Existing, non-NCGD players are not supported!**
 * Your attributes grow automatically as your skills increase.
 * Leveling happens automatically as attributes increase.
 * Attribute modifier numbers and skill attributes (which skills increase which attributes) are fully configurable.
@@ -17,7 +18,13 @@ Features:
 
 1. Add the following to `CoreScripts/scripts/customScripts.lua`:
 
+        ...
+        -- DataManager needs to before NCGD, like this
+        DataManager = require("custom/DataManager/main")
+
         require("custom/ncgd-tes3mp/main")
+
+1. Ensure that `DataManager` loads before this mod as seen above.
 
 1. Optionally configure NCGD by editing the `CoreScripts/data/custom/__config_ncgdTES3MP.json` file (see below).
 
@@ -25,7 +32,8 @@ Features:
 
 * No mastery effects; skills can raise to whatever the server max values are without them.
 * Scripts are not ran every frame or tick, but when `OnPlayerSkill` fires (among other events used).
-* There are no in-game player dialogue GUIs, and there is currently no way to migrate a non-NCGD player.
+* There are no in-game player dialogue GUIs, and **there is currently no way to migrate a non-NCGD player**.
+    * There is presently no way to properly "convert" existing players to NCGD since I can't know what their starting attributes are.
 * Decay rates are gotten from an individual player's in-game hours spent playing, not the total world time that's passed.
 * This version is highly configurable; almost every value that matters is tweakable (see below).
 * Optional decay acceleration when a player dies, that is optionally stackable if they keep dying (see below).
