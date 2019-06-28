@@ -603,6 +603,11 @@ end
 
 local function updatePlayTime(pid)
    local pt = getCustomVar(pid, "loginPlayTime")
+
+   -- The player might be quitting before finishing chargen,
+   -- so this and more would never be set.  Bail.
+   if pt == nil then return end
+
    local loginDaysPassed = pt["daysPassed"]
    local loginHour = pt["hour"]
    local loginPlayTime = pt["playTime"]
