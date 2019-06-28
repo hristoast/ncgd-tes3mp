@@ -436,6 +436,10 @@ local function setCustomVar(pid, key, val, subkey)
    end
 end
 
+local function hasNCGDdata(pid)
+   return Players[pid].data.customVariables.NCGD ~= nil
+end
+
 local function recalculateDecayMemory(pid, rate, force)
    if not getCustomVar(pid, "charGenDone") and not force then return end
 
@@ -757,6 +761,29 @@ local function modHealth(pid)
    player:LoadStatsDynamic()
 end
 
+local function initPlayer(pid)
+   Players[pid].data.customVariables.NCGD = {}
+   Players[pid].data.customVariables.NCGD.attributes = {}
+   Players[pid].data.customVariables.NCGD.skills = {}
+
+   for _, attribute in pairs(Attributes) do
+      initAttribute(pid, attribute)
+   end
+
+   for _, skill in pairs(Skills) do
+      initSkill(pid, skill)
+   end
+
+   if ncgdTES3MP.config.healthMod then
+      modHealth(pid)
+   end
+
+   local decayRate = getDecayRate(pid)
+   recalculateDecayMemory(pid, decayRate, true)
+   setCustomVar(pid, "charGenDone", true)
+   setCustomVar(pid, "decayRate", decayRate)
+end
+
 local function safelyRunEvent(eventStatus, eventName, forceLoadOpt)
    if not eventStatus.validCustomHandlers and not forceLoadOpt then
       fatal("validCustomHandlers for `" .. eventName .. "` have been set to false!" ..
@@ -823,6 +850,13 @@ function ncgdTES3MP.OnPlayerAuthentified(eventStatus, pid)
    if not ncgdTES3MP.config.deathDecay.enabled and ncgdTES3MP.config.decayRate == none  then return end
    safelyRunEvent(eventStatus, "OnPlayerAuthentified", ncgdTES3MP.config.forceLoadOnPlayerAuthentified)
    info("Called \"OnPlayerAuthentified\" for pid \"" .. pid .. "\"")
+   if not hasNCGDdata(pid) then
+      warn("Importing non-NCGD player named \"" .. Players[pid].accountName .. "\"!")
+      chatMsg(pid, color.Red .. "Your stats are being converted to NCGD.  They will not be "
+              .. "the same as if you started fresh with NCGD!  As such, a new "
+              .. "character is advised.  At any rate, have fun!" .. color.Default)
+      initPlayer(pid)
+   end
    setCustomVar(pid, "loginPlayTime",
                 {
                    ["daysPassed"] = WorldInstance.data.time.daysPassed,
@@ -866,35 +900,7 @@ end
 function ncgdTES3MP.OnPlayerEndCharGen(eventStatus, pid)
    safelyRunEvent(eventStatus, "OnPlayerEndCharGen", ncgdTES3MP.config.forceLoadOnPlayerEndCharGen)
    info("Called \"OnPlayerEndCharGen\" for pid \"" .. pid .. "\"")
-
-   if Players[pid].data.customVariables.NCGD == nil then
-      Players[pid].data.customVariables.NCGD = {}
-   end
-
-   if Players[pid].data.customVariables.NCGD.attributes == nil then
-      Players[pid].data.customVariables.NCGD.attributes = {}
-   end
-
-   if Players[pid].data.customVariables.NCGD.skills == nil then
-      Players[pid].data.customVariables.NCGD.skills = {}
-   end
-
-   for _, attribute in pairs(Attributes) do
-      initAttribute(pid, attribute)
-   end
-
-   for _, skill in pairs(Skills) do
-      initSkill(pid, skill)
-   end
-
-   if ncgdTES3MP.config.healthMod then
-      modHealth(pid)
-   end
-
-   local decayRate = getDecayRate(pid)
-   recalculateDecayMemory(pid, decayRate, true)
-   setCustomVar(pid, "charGenDone", true)
-   setCustomVar(pid, "decayRate", decayRate)
+   initPlayer(pid)
 end
 
 function ncgdTES3MP.OnPlayerLevel(eventStatus, pid)
