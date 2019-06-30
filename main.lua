@@ -510,7 +510,7 @@ local function recalculateAttribute(pid, attribute)
 
       -- TODO: Some way of reporting level progress.
       if temp2 > 25 then
-         local oldLevel = tes3mp.GetLevel(pid)
+         local oldLevel = Players[pid].data.stats.level
          local newLevel = temp2 - 25
 
          if canLevel(newLevel) then
