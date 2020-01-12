@@ -735,6 +735,12 @@ local function modHealth(pid)
    temp = math.floor(Wil / 4)
    maxHP = math.floor(maxHP + temp)
 
+   -- Work-around for abilities not being saved to server
+   -- https://github.com/hristoast/ncgd-tes3mp/issues/3
+   if Players[pid].data.character.birthsign == "lady's favor" then
+      maxHP = maxHP + 25
+   end
+
    if currentHP > baseHP then
       currentHP = math.floor(currentHP / hpRatio)
 
