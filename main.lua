@@ -703,68 +703,48 @@ local function processDecay(pid)
    end
 end
 
-local function getHealthGetRatio(pid)
-   -- https://en.uesp.net/wiki/Tes3Mod:GetHealthGetRatio
-   -- http://lua-users.org/wiki/SimpleRound
-   dbg("Called \"getHealthGetRatio\" for pid \"" .. pid .. "\".")
-   local playerData = Players[pid].data
-   local m = 10^1
-   return math.floor((playerData.stats.healthCurrent / playerData.stats.healthBase) * m + 0.5) / m
-end
-
 local function modHealth(pid)
-   if getHealthGetRatio(pid) == 0 then return end
+   local oldBaseHP = tes3mp.GetHealthBase(pid)
+   local oldCurrentHP = tes3mp.GetHealthCurrent(pid)
 
-   local player = Players[pid]
+   local hpRatio = oldCurrentHP / oldBaseHP
 
-   local baseHP = player.data.stats.healthBase
-   local currentHP = player.data.stats.healthCurrent
+   if hpRatio == 0 then return end -- player died
 
    local End = getAttribute(pid, Endurance)
    local Str = getAttribute(pid, Strength)
    local Wil = getAttribute(pid, Willpower)
 
-   local hpRatio = getHealthGetRatio(pid)
-
-   local maxHP = End
-
-   -- TODO: A better name
-   local temp = math.floor(Str / 2)
-
-   maxHP = maxHP + temp
-   temp = math.floor(Wil / 4)
-   maxHP = math.floor(maxHP + temp)
+   local newBaseHP = math.floor(End) + math.floor(Str / 2) + math.floor(Wil / 4)
 
    -- Work-around for abilities not being saved to server
    -- https://github.com/hristoast/ncgd-tes3mp/issues/3
    if Players[pid].data.character.birthsign == "lady's favor" then
-      maxHP = maxHP + 25
+      newBaseHP = newBaseHP + 25
    end
 
-   if currentHP > baseHP then
-      currentHP = math.floor(currentHP / hpRatio)
+   newCurrentHP = newBaseHP * hpRatio
 
-      local fortifiedHP = currentHP - maxHP
-
-      maxHP = End
-      temp = math.floor(Str / 2)
-      maxHP = maxHP + temp
-      temp = math.floor(Wil / 4)
-      maxHP = maxHP + temp
-      maxHP = maxHP + fortifiedHP
+   -- Do nothing if the health difference is less than 1
+   -- http://lua-users.org/wiki/SimpleRound
+   if math.abs(math.floor(oldCurrentHP + 0.5) - math.floor(newCurrentHP + 0.5)) < 1 then
+      info("Ignored health change of pid \"" .. pid .. "\"")
+      return
    end
 
-   dbg("Modifying base health of pid \"" .. pid .. "\" from \"" ..
-          player.data.stats.healthBase .. "\" to \"" .. tostring(maxHP) .. "\"")
+   info("Modifying base health of pid \"" .. pid .. "\" from \"" ..
+          oldBaseHP .. "\" to \"" .. tostring(newBaseHP) .. "\"")
 
-   currentHP = maxHP * hpRatio
+   info("Modifying current health of pid \"" .. pid .. "\" from \"" .. oldCurrentHP
+          .. "\" to \"" .. tostring(newCurrentHP) .. "\"")
 
-   dbg("Modifying current health of pid \"" .. pid .. "\" from \"" .. player.data.stats.healthCurrent
-          .. "\" to \"" .. tostring(currentHP) .. "\"")
+   Players[pid].data.stats.healthBase = newBaseHP
+   Players[pid].data.stats.healthCurrent = newCurrentHP
 
-   player.data.stats.healthBase = maxHP
-   player.data.stats.healthCurrent = currentHP
-   player:LoadStatsDynamic()
+   tes3mp.SetHealthBase(pid, newBaseHP)
+   tes3mp.SetHealthCurrent(pid, newCurrentHP)
+
+   tes3mp.SendStatsDynamic(pid)
 end
 
 local function initPlayer(pid)
