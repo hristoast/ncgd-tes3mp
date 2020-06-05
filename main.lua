@@ -821,7 +821,7 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
          end
       end
 
-      if ncgdTES3MP.config.healthMod and modHP then modHealth(pid) end
+      if modHP then modHealth(pid) end
 
       if recalcLuck then recalculateAttribute(pid, Luck) end
    end
