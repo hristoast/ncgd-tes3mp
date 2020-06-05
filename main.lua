@@ -388,10 +388,7 @@ local function gameMsg(pid, msg)
 end
 
 local function randInt(rangeStart, rangeEnd)
-   -- THANKS: https://stackoverflow.com/a/20157671
-   math.random()
-   math.random()
-   math.random()
+   math.randomseed(os.time())
    return math.random(rangeStart, rangeEnd)
 end
 
