@@ -992,3 +992,5 @@ customEventHooks.registerValidator("OnPlayerSkill", ncgdTES3MP.OnPlayerSkill)
 customEventHooks.registerHandler("OnPlayerAuthentified", ncgdTES3MP.OnPlayerAuthentified)
 customEventHooks.registerHandler("OnPlayerDeath", ncgdTES3MP.OnPlayerDeath)
 customEventHooks.registerHandler("OnPlayerEndCharGen", ncgdTES3MP.OnPlayerEndCharGen)
+
+return ncgdTES3MP
