@@ -109,6 +109,10 @@ String.  Set the rate of attribute growth:  `fast`, `standard`, or `slow`.  Defa
 
 Integers.  Control the weight of each growth level.  Default: `1`, `2`, and `3` for `slow`, `standard`, and `fast`, respectively.
 
+* `healthAttributes`
+
+Array of strings.  Choose which attributes affect health growth.  Default: `Endurance, Strength, Willpower`
+
 * `healthMod`
 
 Boolean.  Set whether or not health modifications should be applied.  Default: `true`
