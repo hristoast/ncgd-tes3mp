@@ -56,6 +56,11 @@ local Skills = {
 }
 
 ncgdTES3MP.defaultConfig = {
+   healthAttributes = {
+       Endurance,
+       Strength,
+       Willpower
+   },
    skillAttributes = {
       -- Combat skills
       Block = {
@@ -360,7 +365,6 @@ ncgdTES3MP.defaultConfig = {
 
 ncgdTES3MP.config = DataManager.loadConfiguration(ncgdTES3MP.scriptName, ncgdTES3MP.defaultConfig)
 
-local healthAttributes = { Endurance, Strength, Willpower }
 local logPrefix = "[ " .. ncgdTES3MP.scriptName .. " ]: "
 
 local function dbg(msg)
@@ -816,7 +820,7 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
          recalcLuck = recalculateAttribute(pid, attribute)
 
          if ncgdTES3MP.config.healthMod
-         and tableHelper.containsValue(healthAttributes, attribute) then
+         and tableHelper.containsValue(ncgdTES3MP.config.healthAttributes, attribute) then
             modHP = true
          end
       end
