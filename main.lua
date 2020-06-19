@@ -397,42 +397,48 @@ local function randInt(rangeStart, rangeEnd)
 end
 
 local function getAttribute(pid, attribute, base)
+   local player = Players[pid]
    if base then
-      return Players[pid].data.attributes[attribute].base
+      return player.data.attributes[attribute].base
    else
-      return Players[pid].data.attributes[attribute].base - Players[pid].data.attributes[attribute].damage
+      return player.data.attributes[attribute].base - player.data.attributes[attribute].damage
    end
 end
 
 local function setAttribute(pid, attribute, value, save)
-   Players[pid].data.attributes[attribute].base = value
-   Players[pid].data.attributes[attribute].skillIncrease = 0
+   local player = Players[pid]
+   player.data.attributes[attribute].base = value
+   player.data.attributes[attribute].skillIncrease = 0
    if save ~= nil then
-      Players[pid]:LoadAttributes()
+      player:LoadAttributes()
    end
 end
 
 local function setPlayerLevel(pid, value)
-   Players[pid].data.stats.level = value
-   Players[pid]:LoadLevel()
+   local player = Players[pid]
+   player.data.stats.level = value
+   player:QuicksaveToDrive()
+   player:LoadLevel()
 end
 
 local function getCustomVar(pid, key, subkey)
-   if Players[pid].data.customVariables.NCGD ~= nil then
+   local player = Players[pid]
+   if player.data.customVariables.NCGD ~= nil then
       if subkey then
-         return Players[pid].data.customVariables.NCGD[key][subkey]
+         return player.data.customVariables.NCGD[key][subkey]
       else
-         return Players[pid].data.customVariables.NCGD[key]
+         return player.data.customVariables.NCGD[key]
       end
    end
 end
 
 local function setCustomVar(pid, key, val, subkey)
-   if Players[pid].data.customVariables.NCGD ~= nil then
+   local player = Players[pid]
+   if player.data.customVariables.NCGD ~= nil then
       if subkey then
-         Players[pid].data.customVariables.NCGD[key][subkey] = val
+         player.data.customVariables.NCGD[key][subkey] = val
       else
-         Players[pid].data.customVariables.NCGD[key] = val
+         player.data.customVariables.NCGD[key] = val
       end
    end
 end
@@ -803,12 +809,13 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
          skillsTable[skill].base = skillBase
       end
 
-      -- Zero out levelProgress to stop the vanilla level up
-      Players[pid].data.stats.levelProgress = 0
-      Players[pid]:LoadLevel()
-
       if changedSkill then break end
    end
+
+   -- Zero out levelProgress to stop the vanilla level up
+   local player = Players[pid]
+   player.data.stats.levelProgress = 0
+   player:LoadLevel()
 
    if changedSkill then
       setCustomVar(pid, "skills", skillsTable)
