@@ -41,7 +41,6 @@ local Unarmored = "Unarmored"
 
 local none = "none"
 local slow = "slow"
-local standard = "standard"
 local fast = "fast"
 
 local Attributes = {
