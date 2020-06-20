@@ -684,13 +684,14 @@ local function processDecay(pid)
                     aSkillDecayed = true
 
                     local attributes = ncgdTES3MP.config.skillAttributes[skill]
+                    local redoLuck
 
                     for _, attribute in pairs(attributes) do
                         dbg("Recalculating " .. attribute .. " due to skill decay...")
-                        local redoLuck = recalculateAttribute(pid, attribute)
+                        redoLuck = recalculateAttribute(pid, attribute)
                     end
 
-                    if redoLuck then
+                    if redoLuck ~= nil then
                         dbg("Recalculating Luck due to skill decay...")
                         recalculateAttribute(pid, Luck)
                     end
