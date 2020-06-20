@@ -40,6 +40,10 @@ Features:
 * In-game chat commands for recalculating things on the fly.  Optionally for admins only (see below).
 * No client plugin is needed.
 
+## Known Issues
+
+* If you level up repeatedly, in the same cell, without leaving, it's possible to re-level up each time a skill raises.  This happens because of a sync issue with the server; the correct level is always eventually calculated, and you can generally "fix" the problem by leaving the cell (e.g. if indoors, go outdoors, etc.) or repeatedly changing cells.
+
 ## Commands
 
 Several commands are offered for recalculating data on the fly:
