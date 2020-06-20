@@ -730,7 +730,7 @@ local function modHealth(pid)
         newBaseHP = newBaseHP + 25
     end
 
-    newCurrentHP = newBaseHP * hpRatio
+    local newCurrentHP = newBaseHP * hpRatio
 
     -- Do nothing if the health difference is less than 1
     -- http://lua-users.org/wiki/SimpleRound
