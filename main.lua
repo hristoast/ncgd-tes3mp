@@ -841,7 +841,6 @@ function ncgdTES3MP.OnPlayerSkill(eventStatus, pid)
 end
 
 function ncgdTES3MP.OnPlayerAuthentified(eventStatus, pid)
-    if not ncgdTES3MP.config.deathDecay.enabled and ncgdTES3MP.config.decayRate == none  then return end
     safelyRunEvent(eventStatus, "OnPlayerAuthentified", ncgdTES3MP.config.forceLoadOnPlayerAuthentified)
     info("Called \"OnPlayerAuthentified\" for pid \"" .. pid .. "\"")
     if not hasNCGDdata(pid) then
@@ -851,6 +850,7 @@ function ncgdTES3MP.OnPlayerAuthentified(eventStatus, pid)
                     .. "character is advised.  At any rate, have fun!" .. color.Default)
         initPlayer(pid)
     end
+    if not ncgdTES3MP.config.deathDecay.enabled and ncgdTES3MP.config.decayRate == none  then return end
     setCustomVar(pid, "loginPlayTime",
                  {
                      ["daysPassed"] = WorldInstance.data.time.daysPassed,
